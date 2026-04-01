@@ -5,67 +5,83 @@ from dotenv import load_dotenv
 from duckduckgo_search import DDGS
 import time
 
-# --- 1. ELITE TERMINAL STYLING ---
-st.set_page_config(page_title="OBITWICEX | ELITE_AGENT", page_icon="⚡", layout="wide")
+# --- 1. EXECUTIVE TERMINAL STYLING (PRO HACKER LAYOUT) ---
+st.set_page_config(page_title="OBITWICEX | ABSOLUTE_AGENT", page_icon="⚡", layout="wide")
 load_dotenv()
 
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap');
-    .stApp { background-color: #050505; }
-    .stMarkdown p, .stMarkdown h1, .stMarkdown h2 { 
+    .stApp { background-color: #050505; color: #00FF41; }
+    .stMarkdown p, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { 
         font-family: 'Fira Code', monospace; 
         color: #00FF41 !important; 
+        text-shadow: 0 0 2px #00FF41;
     }
     div[data-testid="stChatMessage"] { 
-        background-color: rgba(10, 10, 10, 0.9);
+        background-color: rgba(5, 5, 5, 0.95);
         border: 1px solid #00FF41;
-        border-radius: 4px;
+        border-radius: 2px;
+        margin-bottom: 10px;
     }
     header {visibility: hidden;}
     footer {visibility: hidden;}
+    /* Custom Scrollbar for Hacker Vibe */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: #050505; }
+    ::-webkit-scrollbar-thumb { background: #00FF41; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. THE STABLE BRAIN (PAID CONNECTION) ---
+# --- 2. THE BRAIN (PAID LLAMA-3.3-70B STABILITY) ---
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=st.secrets["OPENROUTER_API_KEY"],
     default_headers={
-        "HTTP-Referer": "https://obitwicex.com", 
-        "X-Title": "Obitwicex Elite Agent"
+        "HTTP-Referer": "https://obitwicex.ai", 
+        "X-Title": "Obitwicex Absolute Agent"
     }
 )
 
-# --- 3. SEARCH ENGINE ---
+# --- 3. MULTI-PROTOCOL RESEARCH ENGINE (REFINED) ---
 def deep_research(query):
     try:
         with DDGS() as ddgs:
-            pak_query = f"{query} Pakistan site:sindhhighcourt.gov.pk OR site:lhc.gov.pk OR site:fbr.gov.pk"
-            results = [r for r in ddgs.text(pak_query, max_results=3)]
-            return "\n\n".join([f"SOURCE: {r['title']}\n{r['body']}" for r in results])
+            # Protocol Selection Logic
+            q_low = query.lower()
+            if "9c" in q_low or "cnsa" in q_low or "narcotics" in q_low or "law" in q_low:
+                search_q = f"{query} CNSA Narcotics Pakistan High Court Judgment 2026 site:pakistanlawsite.com OR site:lhc.gov.pk"
+            elif "ads" in q_low or "seo" in q_low or "marketing" in q_low:
+                search_q = f"{query} Google Ads policy SEO strategy Pakistan 2026"
+            elif "fbr" in q_low or "secp" in q_low or "tax" in q_low:
+                search_q = f"{query} FBR Income Tax Ordinance SECP Pakistan 2026"
+            else:
+                search_q = f"{query} Pakistan 2026 Business Law Technology"
+                
+            results = [r for r in ddgs.text(search_q, max_results=5)]
+            return "\n\n".join([f"SYSTEM_ENTRY: {r['title']}\n{r['body']}" for r in results])
     except: 
-        return "LOCAL_ENCRYPTED_DB_ACTIVE"
+        return "SYSTEM_LOG: Research bypass failed. Using core knowledge base."
 
-# --- 4. SESSION MANAGEMENT (CLEAN SLATE) ---
+# --- 4. SESSION ARCHITECTURE ---
 if "messages" not in st.session_state: 
     st.session_state.messages = []
 
 with st.sidebar:
-    st.title("⚡ OBITWICEX_CTRL")
-    st.code("UPLINK: ACTIVE\nSTATUS: ENCRYPTED", language="bash")
-    if st.button("PURGE_ALL_SYSTEM_LOGS"):
+    st.title("⚡ OBITWICEX_CORE")
+    st.write("---")
+    st.code("UPLINK: SECURE\nMODEL: LLAMA-3.3-ELITE\nSTATUS: NO_ERRORS", language="bash")
+    if st.button("TERMINATE_SESSION_LOGS"):
         st.session_state.messages = []
         st.rerun()
 
-# Display ONLY what is actually in the message history
+# Display historical data
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- 5. THE ENGINE ---
-if prompt := st.chat_input("ENTER_COMMAND_OR_QUERY..."):
-    # Immediately add user message to state so it shows up correctly
+# --- 5. THE ABSOLUTE ENGINE ---
+if prompt := st.chat_input("SUBMIT_COMMAND..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"): 
         st.markdown(f"> {prompt}")
@@ -74,31 +90,31 @@ if prompt := st.chat_input("ENTER_COMMAND_OR_QUERY..."):
         response_placeholder = st.empty()
         full_response = ""
         
-        # LOGIC FOR SPECIFIC COMMANDS
-        prompt_low = prompt.lower()
-        if "ahmad ali kala" in prompt_low:
-            full_response = "LOG: Not a friend. Baat Bazaar me Rakhu ga Dukaaan Kholu ga."
-        elif prompt_low in ["hi", "hello", "hey", "salam"]:
-            full_response = "ACCESS_GRANTED. Hello! Main Obitwicex Elite Agent hoon. Bataiye aaj kis maslay mein madad karoon?"
-        else:
-            with st.status("INITIALIZING_EXPERT_PROTOCOL...", expanded=True) as status:
-                st.write("Intercepting live databases...")
-                context = deep_research(prompt)
-                sys_msg = f"You are OBITWICEX ELITE AGENT. Expert in Pakistan Law & Tech. Context: {context}. Speak in Roman Urdu like a high-level pro."
-                
-                # Using a high-stability paid model to bypass those 400/401 errors
-                messages = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-5:]
-                
-                response = client.chat.completions.create(
-                    model="meta-llama/llama-3.3-70b-instruct",
-                    messages=messages,
-                    stream=True
-                )
-                for chunk in response:
-                    if chunk.choices[0].delta.content:
-                        full_response += chunk.choices[0].delta.content
-                        response_placeholder.markdown(full_response + " █")
-                status.update(label="ANALYSIS_COMPLETE", state="complete")
+        with st.status("INITIALIZING_CORE_REASONING...", expanded=True) as status:
+            # Sync context
+            context = deep_research(prompt)
+            
+            # Master Instruction Set
+            sys_msg = f"""You are OBITWICEX ABSOLUTE AGENT. 
+            - CRITICAL: No humor. No confusion. Professional, high-level consultant tone.
+            - LEGAL: 9-C is Narcotic Law (CNSA). FBR is Tax. Never confuse the two.
+            - DOMAIN: Pakistan (LHC/SHC/FBR/SECP).
+            - CONTEXT: {context}
+            - LANGUAGE: Roman Urdu for advice, English for code/citations/legal references."""
+            
+            messages = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-8:]
+            
+            # Execute Paid API Call
+            response = client.chat.completions.create(
+                model="meta-llama/llama-3.3-70b-instruct",
+                messages=messages,
+                stream=True
+            )
+            for chunk in response:
+                if chunk.choices[0].delta.content:
+                    full_response += chunk.choices[0].delta.content
+                    response_placeholder.markdown(full_response + " █")
+            status.update(label="ANALYSIS_FINALIZED", state="complete")
 
         response_placeholder.markdown(full_response)
         st.session_state.messages.append({"role": "assistant", "content": full_response})
