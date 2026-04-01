@@ -35,7 +35,6 @@ st.markdown("""
 
 # --- 2. ERROR SHIELD (THE NOOB-TO-ARCHITECT WRAPPER) ---
 def safe_ai_call(messages):
-    """Wraps the AI call to prevent scary red boxes and give clear fixes."""
     try:
         client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
@@ -53,18 +52,16 @@ def safe_ai_call(messages):
     except Exception as e:
         err = str(e).lower()
         if "401" in err or "auth" in err:
-            st.error("🔑 KEY_ERROR: API Key is invalid or expired.")
-            st.info("FIX: Check your OpenRouter credits or paste a new key in Secrets.")
+            st.error("🔑 KEY_ERROR: API Key is invalid.")
         elif "400" in err:
-            st.error("⚠️ REQUEST_ERROR: OpenRouter rejected the request format.")
-            st.info("FIX: This is a temporary handshake issue. Click 'REBOOT' in the menu.")
+            st.error("⚠️ REQUEST_ERROR: OpenRouter rejected format.")
         else:
             st.error(f"❌ CRITICAL_GLITCH: {type(e).__name__}")
-            with st.expander("AI_DEBUG_LOG (Copy this for Gemini)"):
+            with st.expander("AI_DEBUG_LOG"):
                 st.code(traceback.format_exc())
         return None
 
-# --- 3. MULTI-PROTOCOL RESEARCH ENGINE (GLOBAL UPGRADE) ---
+# --- 3. MULTI-PROTOCOL RESEARCH ENGINE ---
 def deep_research(query):
     try:
         with DDGS() as ddgs:
@@ -77,18 +74,18 @@ def deep_research(query):
                     break
 
             if any(k in q_low for k in ["9c", "cnsa", "narcotics", "law"]):
-                search_q = f"{query} CNSA Narcotics {location} Case Law Judgment site:pakistanlawsite.com OR legal records"
+                search_q = f"{query} CNSA Narcotics {location} Case Law Judgment"
             elif any(k in q_low for k in ["ads", "seo", "marketing", "copy", "strategy"]):
-                search_q = f"{query} {location} marketing benchmarks SEO copy strategy 2026"
-            elif any(k in q_low for k in ["fbr", "secp", "tax", "irs", "cra", "compliance"]):
-                search_q = f"{query} {location} tax regulation 2026 compliance"
+                search_q = f"{query} {location} marketing SEO benchmarks 2026"
+            elif any(k in q_low for k in ["fbr", "secp", "tax", "irs", "cra"]):
+                search_q = f"{query} {location} tax regulation 2026"
             else:
-                search_q = f"{query} {location} industry trends business technology 2026"
+                search_q = f"{query} {location} industry trends technology 2026"
                 
             results = [r for r in ddgs.text(search_q, max_results=5)]
             return "\n\n".join([f"SYSTEM_ENTRY: {r['title']}\n{r['body']}" for r in results])
     except: 
-        return "SYSTEM_LOG: Research offline. Utilizing core intelligence."
+        return "SYSTEM_LOG: Research bypass active."
 
 # --- 4. SESSION ARCHITECTURE ---
 if "messages" not in st.session_state: 
@@ -115,14 +112,27 @@ if prompt := st.chat_input("SUBMIT_COMMAND..."):
         response_placeholder = st.empty()
         full_response = ""
         
-        # EXACT GREETING LOGIC
         if prompt.lower() in ["hi", "hello", "hey", "salam"]:
             full_response = "I am Obitwicex Your Everyday Ai Agent! I am Capable of guiding you through every Complex task! Anything You Want Try Me !"
         else:
             with st.status("INITIALIZING_CORE_REASONING...", expanded=True) as status:
                 context = deep_research(prompt)
                 
-                # --- NEW UNLIMITED SYSTEM PROMPT ---
-                sys_msg = f"""You are OBITWICEX ABSOLUTE AGENT. 
-                - PERSONALITY: You are a high-level, elite partner. You do NOT sound like a limited bot. Avoid listing your capabilities as a menu.
-                - REACH: You are boundless. You handle ANY complex task—Marketing, Law, Tech
+                # --- CLEANED SYSTEM PROMPT ---
+                sys_msg = f"You are OBITWICEX ABSOLUTE AGENT. You are an elite, boundless partner for Marketing, Law, Tech, and SEO globally. Sound confident and warm, not robotic. Do not list capabilities as a menu. 9-C is Narcotic Law (CNSA). Context: {context}. Speak in Roman Urdu for advice, English for data."
+                
+                messages = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-8:]
+                response = safe_ai_call(messages)
+                
+                if response:
+                    for chunk in response:
+                        if chunk.choices[0].delta.content:
+                            full_response += chunk.choices[0].delta.content
+                            response_placeholder.markdown(full_response + " █")
+                    status.update(label="ANALYSIS_FINALIZED", state="complete")
+                else:
+                    status.update(label="SYSTEM_FAILURE", state="error")
+                    full_response = "SYSTEM_HALT: Uplink failure. Check Debug Log."
+
+        response_placeholder.markdown(full_response)
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
