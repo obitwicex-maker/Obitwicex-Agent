@@ -37,7 +37,9 @@ def deep_research(query):
     except: 
         return "Internal Knowledge Base Active."
 
-client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.getenv("OPENROUTER_API_KEY"))
+# Use Streamlit Secrets for the API Key
+api_key = st.secrets.get("OPENROUTER_API_KEY") or os.getenv("OPENROUTER_API_KEY")
+client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
 
 if "messages" not in st.session_state: 
     st.session_state.messages = []
@@ -92,21 +94,10 @@ if prompt := st.chat_input("Submit Task, Legal Query, or Code..."):
                     - LANGUAGE: Roman Urdu for advice, English for code/citations. NO ARABIC SCRIPT. NO WEIRD POETRY."""
                     
                     messages = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-10:]
-                    response = client.chat.completions.create(model="openrouter/auto", messages=messages, stream=True)
+                    # FIXED MODEL CALL 1
+                    response = client.chat.completions.create(model="google/gemini-2.0-flash-lite-preview-02-05:free", messages=messages, stream=True)
                     for chunk in response:
                         if chunk.choices[0].delta.content:
                             full_response += chunk.choices[0].delta.content
                             response_placeholder.markdown(full_response + " ▋")
                     status.update(label="Analysis Delivered", state="complete", expanded=False)
-            else:
-                sys_msg = "You are Obitwicex. Professional Pakistani consultant. Use Roman Urdu. Be brief and natural."
-                messages = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-3:]
-                response = client.chat.completions.create(model="openrouter/auto", messages=messages, stream=True)
-                for chunk in response:
-                    if chunk.choices[0].delta.content:
-                        full_response += chunk.choices[0].delta.content
-                        response_placeholder.markdown(full_response + " ▋")
-
-        response_placeholder.markdown(full_response)
-    
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
