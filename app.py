@@ -64,24 +64,34 @@ def safe_ai_call(messages):
                 st.code(traceback.format_exc())
         return None
 
-# --- 3. MULTI-PROTOCOL RESEARCH ENGINE ---
+# --- 3. MULTI-PROTOCOL RESEARCH ENGINE (GLOBAL UPGRADE) ---
 def deep_research(query):
     try:
         with DDGS() as ddgs:
             q_low = query.lower()
+            
+            # Smart location detection for global pivot
+            world_locs = ["london", "new york", "toronto", "dubai", "canada", "usa", "uk", "karachi", "lahore", "islamabad"]
+            location = "Global/Local"
+            for loc in world_locs:
+                if loc in q_low:
+                    location = loc.title()
+                    break
+
+            # Protocol Selection
             if any(k in q_low for k in ["9c", "cnsa", "narcotics", "law"]):
-                search_q = f"{query} CNSA Narcotics Pakistan High Court Judgment 2026 site:pakistanlawsite.com"
-            elif any(k in q_low for k in ["ads", "seo", "marketing"]):
-                search_q = f"{query} Google Ads policy SEO strategy Pakistan 2026"
-            elif any(k in q_low for k in ["fbr", "secp", "tax"]):
-                search_q = f"{query} FBR Income Tax Ordinance SECP Pakistan 2026"
+                search_q = f"{query} CNSA Narcotics {location} Case Law Judgment site:pakistanlawsite.com OR legal database"
+            elif any(k in q_low for k in ["ads", "seo", "marketing", "copy", "strategy"]):
+                search_q = f"{query} {location} Google Ads marketing copy SEO strategy 2026 benchmarks"
+            elif any(k in q_low for k in ["fbr", "secp", "tax", "irs", "cra", "compliance"]):
+                search_q = f"{query} {location} Tax Law Regulation 2026 compliance"
             else:
-                search_q = f"{query} Pakistan 2026 Business Law Technology"
+                search_q = f"{query} {location} Business Tech Trends 2026"
                 
             results = [r for r in ddgs.text(search_q, max_results=5)]
             return "\n\n".join([f"SYSTEM_ENTRY: {r['title']}\n{r['body']}" for r in results])
     except: 
-        return "SYSTEM_LOG: Research offline. Using local logic."
+        return "SYSTEM_LOG: Research offline. Using internal high-level knowledge base."
 
 # --- 4. SESSION ARCHITECTURE ---
 if "messages" not in st.session_state: 
@@ -108,20 +118,21 @@ if prompt := st.chat_input("SUBMIT_COMMAND..."):
         response_placeholder = st.empty()
         full_response = ""
         
+        # EXACT GREETING LOGIC
         if prompt.lower() in ["hi", "hello", "hey", "salam"]:
             full_response = "I am Obitwicex Your Everyday Ai Agent! I am Capable of guiding you through every Complex task! Anything You Want Try Me !"
         else:
             with st.status("INITIALIZING_CORE_REASONING...", expanded=True) as status:
                 context = deep_research(prompt)
                 sys_msg = f"""You are OBITWICEX ABSOLUTE AGENT. 
-                - CRITICAL: No humor. Professional tone.
-                - LEGAL: 9-C is Narcotic Law (CNSA). FBR is Tax.
+                - CRITICAL: Professional tone. No humor.
+                - EXPERTISE: Global Marketing, SEO, Ad Copy, and Multi-Jurisdictional Law.
+                - SPECIAL: 9-C is Narcotic Law (CNSA). FBR/IRS is Tax.
                 - CONTEXT: {context}
-                - LANGUAGE: Roman Urdu for advice, English for technical data."""
+                - LANGUAGE: Roman Urdu for advice, English for technical data/citations."""
                 
                 messages = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-8:]
                 
-                # USING THE SAFE SHIELD
                 response = safe_ai_call(messages)
                 
                 if response:
@@ -132,7 +143,7 @@ if prompt := st.chat_input("SUBMIT_COMMAND..."):
                     status.update(label="ANALYSIS_FINALIZED", state="complete")
                 else:
                     status.update(label="SYSTEM_FAILURE", state="error")
-                    full_response = "SYSTEM_HALT: Error occurred during uplink. See debug log above."
+                    full_response = "SYSTEM_HALT: Connection interrupted. Check Debug Log."
 
         response_placeholder.markdown(full_response)
         st.session_state.messages.append({"role": "assistant", "content": full_response})
