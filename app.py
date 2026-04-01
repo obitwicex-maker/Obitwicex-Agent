@@ -88,16 +88,37 @@ if prompt := st.chat_input("Submit Task, Legal Query, or Code..."):
                     st.write("Syncing with live Pakistan Law & Market databases...")
                     live_context = deep_research(prompt)
                     sys_msg = f"""You are Obitwicex Elite Agent.
-                    - GREETINGS: Professional and natural. If user says 'theek hu', reply like 'Zabardast! Bataiye aaj main aapki kis technical ya legal maslay mein madad kar sakta hoon?'
+                    - GREETINGS: Professional and natural.
                     - EXPERTISE: Pakistan Law (SHC/LHC), Real Estate, E-Commerce, Full-Stack Dev.
                     - CONTEXT: {live_context}
-                    - LANGUAGE: Roman Urdu for advice, English for code/citations. NO ARABIC SCRIPT. NO WEIRD POETRY."""
+                    - LANGUAGE: Roman Urdu for advice, English for code/citations."""
                     
                     messages = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-10:]
-                    # FIXED MODEL CALL 1
-                    response = client.chat.completions.create(model="google/gemini-2.0-flash-lite-preview-02-05:free", messages=messages, stream=True)
+                    
+                    # FIXED CALL: Simplified to avoid timeout errors
+                    response = client.chat.completions.create(
+                        model="google/gemini-2.0-flash-lite-preview-02-05:free", 
+                        messages=messages, 
+                        stream=True
+                    )
                     for chunk in response:
                         if chunk.choices[0].delta.content:
                             full_response += chunk.choices[0].delta.content
                             response_placeholder.markdown(full_response + " ▋")
                     status.update(label="Analysis Delivered", state="complete", expanded=False)
+            else:
+                sys_msg = "You are Obitwicex. Professional Pakistani consultant. Use Roman Urdu."
+                messages = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-3:]
+                response = client.chat.completions.create(
+                    model="google/gemini-2.0-flash-lite-preview-02-05:free", 
+                    messages=messages, 
+                    stream=True
+                )
+                for chunk in response:
+                    if chunk.choices[0].delta.content:
+                        full_response += chunk.choices[0].delta.content
+                        response_placeholder.markdown(full_response + " ▋")
+
+        response_placeholder.markdown(full_response)
+    
+    st.session_state.messages.append({"role": "assistant", "content": full_response})
