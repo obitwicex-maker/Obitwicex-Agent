@@ -33,7 +33,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. ERROR SHIELD (THE NOOB-TO-ARCHITECT WRAPPER) ---
+# --- 2. ERROR SHIELD (VERIFIED WRAPPER) ---
 def safe_ai_call(messages):
     try:
         client = OpenAI(
@@ -50,11 +50,9 @@ def safe_ai_call(messages):
             stream=True
         )
     except Exception as e:
-        err = str(e).lower()
-        if "401" in err or "auth" in err:
-            st.error("🔑 KEY_ERROR: API Key is invalid.")
-        elif "400" in err:
-            st.error("⚠️ REQUEST_ERROR: OpenRouter rejected format.")
+        err_msg = str(e).lower()
+        if "401" in err_msg or "auth" in err_msg:
+            st.error("🔑 KEY_ERROR: API Key issue. Check OpenRouter.")
         else:
             st.error(f"❌ CRITICAL_GLITCH: {type(e).__name__}")
             with st.expander("AI_DEBUG_LOG"):
@@ -111,15 +109,21 @@ if prompt := st.chat_input("SUBMIT_COMMAND..."):
     with st.chat_message("assistant"):
         response_placeholder = st.empty()
         full_response = ""
+        prompt_low = prompt.lower()
         
-        if prompt.lower() in ["hi", "hello", "hey", "salam"]:
+        # --- EASTER EGGS & GREETINGS ---
+        if prompt_low in ["hi", "hello", "hey", "salam"]:
             full_response = "I am Obitwicex Your Everyday Ai Agent! I am Capable of guiding you through every Complex task! Anything You Want Try Me !"
+        
+        elif "ahmad ali kala" in prompt_low:
+            full_response = "Hanji! Ahmad Ali Kala? Woh mera dost nahi hai. Baat Bazaar me Rakhu ga, aur uski Dukaan me hi Kholu ga. Samjhay?"
+
         else:
             with st.status("INITIALIZING_CORE_REASONING...", expanded=True) as status:
                 context = deep_research(prompt)
                 
-                # --- CLEANED SYSTEM PROMPT ---
-                sys_msg = f"You are OBITWICEX ABSOLUTE AGENT. You are an elite, boundless partner for Marketing, Law, Tech, and SEO globally. Sound confident and warm, not robotic. Do not list capabilities as a menu. 9-C is Narcotic Law (CNSA). Context: {context}. Speak in Roman Urdu for advice, English for data."
+                # --- VERIFIED SYSTEM PROMPT ---
+                sys_msg = f"You are OBITWICEX ABSOLUTE AGENT. You are an elite, raw, and authentic partner. Understand local Punjabi/Urdu slang and context—don't give robotic 'safe' answers if the user is joking. Match the user's energy. 9-C is Narcotic Law (CNSA). Context: {context}. Speak in Roman Urdu for advice, English for data."
                 
                 messages = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-8:]
                 response = safe_ai_call(messages)
@@ -132,7 +136,7 @@ if prompt := st.chat_input("SUBMIT_COMMAND..."):
                     status.update(label="ANALYSIS_FINALIZED", state="complete")
                 else:
                     status.update(label="SYSTEM_FAILURE", state="error")
-                    full_response = "SYSTEM_HALT: Uplink failure. Check Debug Log."
+                    full_response = "SYSTEM_HALT: Check Debug Log."
 
         response_placeholder.markdown(full_response)
         st.session_state.messages.append({"role": "assistant", "content": full_response})
