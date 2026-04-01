@@ -12,36 +12,29 @@ st.markdown("""
     <style>
     .stApp { background-color: #0D1117; }
     .stMarkdown p { font-family: 'Inter', sans-serif; font-size: 14px; color: #C9D1D9; line-height: 1.6; }
-    code { background-color: #161B22 !important; color: #79C0FF !important; border-radius: 6px; padding: 2px 4px; border: 1px solid #30363D; }
-    div[data-testid="stChatMessage"] { 
-        border-radius: 12px; 
-        border: 1px solid #30363D; 
-        background-color: #161B22; 
-        margin-bottom: 12px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-    }
     header {visibility: hidden;}
     footer {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. AUTONOMOUS RESEARCH ENGINE (PAKISTAN FOCUSED) ---
+# --- 2. AUTONOMOUS RESEARCH ENGINE ---
 def deep_research(query):
     try:
         with DDGS() as ddgs:
-            pak_query = f"{query} site:sindhhighcourt.gov.pk OR site:lhc.gov.pk OR site:pakistanlawsite.com OR site:fbr.gov.pk OR site:secp.gov.pk"
-            results = [r for r in ddgs.text(pak_query, max_results=6)]
-            if not results:
-                results = [r for r in ddgs.text(f"{query} Pakistan Law Judgment 2026", max_results=5)]
-            return "\n\n".join([f"ANALYSIS SOURCE: {r['title']}\n{r['body']}" for r in results])
+            pak_query = f"{query} site:sindhhighcourt.gov.pk OR site:lhc.gov.pk OR site:fbr.gov.pk"
+            results = [r for r in ddgs.text(pak_query, max_results=5)]
+            return "\n\n".join([f"SOURCE: {r['title']}\n{r['body']}" for r in results])
     except: 
         return "Internal Knowledge Base Active."
 
-# --- 3. THE "BRAIN" CONNECTION (SECURE HANDSHAKE) ---
-# This looks directly at your Streamlit Secrets box
+# --- 3. THE BRAIN (WITH REQUIRED OPENROUTER HEADERS) ---
 client = OpenAI(
-    base_url="https://openrouter.ai/api/v1", 
-    api_key=st.secrets["OPENROUTER_API_KEY"]
+    base_url="https://openrouter.ai/api/v1",
+    api_key=st.secrets["OPENROUTER_API_KEY"],
+    default_headers={
+        "HTTP-Referer": "https://streamlit.app", # Required by OpenRouter
+        "X-Title": "Obitwicex Agent"            # Required by OpenRouter
+    }
 )
 
 if "messages" not in st.session_state: 
@@ -49,9 +42,7 @@ if "messages" not in st.session_state:
 
 with st.sidebar:
     st.title("Obitwicex Control ⚡")
-    st.write("---")
-    st.status("Specialist Protocols: **ONLINE**", state="complete")
-    st.info("Expert: Law (SHC/LHC), Real Estate, E-Commerce, Dev & SEO.")
+    st.info("Expert: Law, Real Estate, Dev & SEO.")
     if st.button("Purge System Cache"):
         st.session_state.messages = []
         st.rerun()
@@ -63,7 +54,7 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # --- 5. THE REASONING ENGINE ---
-if prompt := st.chat_input("Submit Task, Legal Query, or Code..."):
+if prompt := st.chat_input("Submit Task..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user", avatar="👤"): 
         st.markdown(prompt)
@@ -72,55 +63,27 @@ if prompt := st.chat_input("Submit Task, Legal Query, or Code..."):
         response_placeholder = st.empty()
         full_response = ""
         
-        # --- THE EASTER EGG ---
         if "ahmad ali kala" in prompt.lower():
-            full_response = "Not a Friend Definitely Not a person to To be Around with In Simple Words ( Tumhe laga tha kuch kahu ga nahi Me to Baat Bazaar me Rakhu ga Dukaaan Kholu ga)"
-            response_placeholder.markdown(full_response)
-        
-        # --- THE PROFESSIONAL GREETING ---
-        elif prompt.lower() in ["hi", "hello", "hey", "salam"]:
+            full_response = "Tumhe laga tha kuch kahu ga nahi Me to Baat Bazaar me Rakhu ga Dukaaan Kholu ga."
+        elif prompt.lower() in ["hi", "hello", "salam"]:
             full_response = "Hello! Kaise hain aap?"
-            response_placeholder.markdown(full_response)
-            
         else:
-            expert_terms = ["9c", "law", "judgment", "fbr", "secp", "reit", "property", "fix", "code", "seo", "ads", "strategy", "theek", "theek hu"]
-            is_expert_query = any(k in prompt.lower() for k in expert_terms) or len(prompt.split()) > 4
-
-            if is_expert_query:
-                with st.status(":material/terminal: Executing Agentic Reasoning...", expanded=True) as status:
-                    st.write("Syncing with live Pakistan Law & Market databases...")
-                    live_context = deep_research(prompt)
-                    sys_msg = f"""You are Obitwicex Elite Agent.
-                    - GREETINGS: Professional and natural.
-                    - EXPERTISE: Pakistan Law (SHC/LHC), Real Estate, E-Commerce, Full-Stack Dev.
-                    - CONTEXT: {live_context}
-                    - LANGUAGE: Roman Urdu for advice, English for code/citations. NO ARABIC SCRIPT."""
-                    
-                    messages = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-10:]
-                    
-                    response = client.chat.completions.create(
-                        model="google/gemini-2.0-flash-lite-preview-02-05:free", 
-                        messages=messages, 
-                        stream=True
-                    )
-                    for chunk in response:
-                        if chunk.choices[0].delta.content:
-                            full_response += chunk.choices[0].delta.content
-                            response_placeholder.markdown(full_response + " ▋")
-                    status.update(label="Analysis Delivered", state="complete", expanded=False)
-            else:
-                sys_msg = "You are Obitwicex. Professional Pakistani consultant. Use Roman Urdu. Be brief and natural."
-                messages = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-3:]
+            with st.status("Executing Agentic Reasoning...", expanded=True) as status:
+                live_context = deep_research(prompt)
+                sys_msg = f"You are Obitwicex. Expert in Pakistan Law & Tech. Context: {live_context}. Use Roman Urdu."
+                messages = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-5:]
+                
+                # Using a very stable model
                 response = client.chat.completions.create(
-                    model="google/gemini-2.0-flash-lite-preview-02-05:free", 
-                    messages=messages, 
+                    model="google/gemini-2.0-flash-lite-preview-02-05:free",
+                    messages=messages,
                     stream=True
                 )
                 for chunk in response:
                     if chunk.choices[0].delta.content:
                         full_response += chunk.choices[0].delta.content
                         response_placeholder.markdown(full_response + " ▋")
+                status.update(label="Complete", state="complete")
 
         response_placeholder.markdown(full_response)
-    
     st.session_state.messages.append({"role": "assistant", "content": full_response})
