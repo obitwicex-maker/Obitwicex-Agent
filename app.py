@@ -37,9 +37,12 @@ def deep_research(query):
     except: 
         return "Internal Knowledge Base Active."
 
-# Use Streamlit Secrets for the API Key
-api_key = st.secrets.get("OPENROUTER_API_KEY") or os.getenv("OPENROUTER_API_KEY")
-client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
+# --- 3. THE "BRAIN" CONNECTION (SECURE HANDSHAKE) ---
+# This looks directly at your Streamlit Secrets box
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1", 
+    api_key=st.secrets["OPENROUTER_API_KEY"]
+)
 
 if "messages" not in st.session_state: 
     st.session_state.messages = []
@@ -53,13 +56,13 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-# --- 3. CHAT DISPLAY ---
+# --- 4. CHAT DISPLAY ---
 for message in st.session_state.messages:
     avatar = "🤖" if message["role"] == "assistant" else "👤"
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
-# --- 4. THE REASONING ENGINE ---
+# --- 5. THE REASONING ENGINE ---
 if prompt := st.chat_input("Submit Task, Legal Query, or Code..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user", avatar="👤"): 
@@ -91,11 +94,10 @@ if prompt := st.chat_input("Submit Task, Legal Query, or Code..."):
                     - GREETINGS: Professional and natural.
                     - EXPERTISE: Pakistan Law (SHC/LHC), Real Estate, E-Commerce, Full-Stack Dev.
                     - CONTEXT: {live_context}
-                    - LANGUAGE: Roman Urdu for advice, English for code/citations."""
+                    - LANGUAGE: Roman Urdu for advice, English for code/citations. NO ARABIC SCRIPT."""
                     
                     messages = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-10:]
                     
-                    # FIXED CALL: Simplified to avoid timeout errors
                     response = client.chat.completions.create(
                         model="google/gemini-2.0-flash-lite-preview-02-05:free", 
                         messages=messages, 
@@ -107,7 +109,7 @@ if prompt := st.chat_input("Submit Task, Legal Query, or Code..."):
                             response_placeholder.markdown(full_response + " ▋")
                     status.update(label="Analysis Delivered", state="complete", expanded=False)
             else:
-                sys_msg = "You are Obitwicex. Professional Pakistani consultant. Use Roman Urdu."
+                sys_msg = "You are Obitwicex. Professional Pakistani consultant. Use Roman Urdu. Be brief and natural."
                 messages = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-3:]
                 response = client.chat.completions.create(
                     model="google/gemini-2.0-flash-lite-preview-02-05:free", 
