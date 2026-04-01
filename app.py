@@ -69,29 +69,26 @@ def deep_research(query):
     try:
         with DDGS() as ddgs:
             q_low = query.lower()
-            
-            # Smart location detection for global pivot
             world_locs = ["london", "new york", "toronto", "dubai", "canada", "usa", "uk", "karachi", "lahore", "islamabad"]
-            location = "Global/Local"
+            location = "Global"
             for loc in world_locs:
                 if loc in q_low:
                     location = loc.title()
                     break
 
-            # Protocol Selection
             if any(k in q_low for k in ["9c", "cnsa", "narcotics", "law"]):
-                search_q = f"{query} CNSA Narcotics {location} Case Law Judgment site:pakistanlawsite.com OR legal database"
+                search_q = f"{query} CNSA Narcotics {location} Case Law Judgment site:pakistanlawsite.com OR legal records"
             elif any(k in q_low for k in ["ads", "seo", "marketing", "copy", "strategy"]):
-                search_q = f"{query} {location} Google Ads marketing copy SEO strategy 2026 benchmarks"
+                search_q = f"{query} {location} marketing benchmarks SEO copy strategy 2026"
             elif any(k in q_low for k in ["fbr", "secp", "tax", "irs", "cra", "compliance"]):
-                search_q = f"{query} {location} Tax Law Regulation 2026 compliance"
+                search_q = f"{query} {location} tax regulation 2026 compliance"
             else:
-                search_q = f"{query} {location} Business Tech Trends 2026"
+                search_q = f"{query} {location} industry trends business technology 2026"
                 
             results = [r for r in ddgs.text(search_q, max_results=5)]
             return "\n\n".join([f"SYSTEM_ENTRY: {r['title']}\n{r['body']}" for r in results])
     except: 
-        return "SYSTEM_LOG: Research offline. Using internal high-level knowledge base."
+        return "SYSTEM_LOG: Research offline. Utilizing core intelligence."
 
 # --- 4. SESSION ARCHITECTURE ---
 if "messages" not in st.session_state: 
@@ -99,7 +96,7 @@ if "messages" not in st.session_state:
 
 with st.sidebar:
     st.title("⚡ OBITWICEX_CORE")
-    st.code("UPLINK: SECURE\nSHIELD: ACTIVE\nSTATUS: NO_ERRORS", language="bash")
+    st.code("UPLINK: SECURE\nSHIELD: ACTIVE\nSTATUS: NO_LIMITS", language="bash")
     if st.button("TERMINATE_SESSION_LOGS"):
         st.session_state.messages = []
         st.rerun()
@@ -124,26 +121,8 @@ if prompt := st.chat_input("SUBMIT_COMMAND..."):
         else:
             with st.status("INITIALIZING_CORE_REASONING...", expanded=True) as status:
                 context = deep_research(prompt)
+                
+                # --- NEW UNLIMITED SYSTEM PROMPT ---
                 sys_msg = f"""You are OBITWICEX ABSOLUTE AGENT. 
-                - CRITICAL: Professional tone. No humor.
-                - EXPERTISE: Global Marketing, SEO, Ad Copy, and Multi-Jurisdictional Law.
-                - SPECIAL: 9-C is Narcotic Law (CNSA). FBR/IRS is Tax.
-                - CONTEXT: {context}
-                - LANGUAGE: Roman Urdu for advice, English for technical data/citations."""
-                
-                messages = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-8:]
-                
-                response = safe_ai_call(messages)
-                
-                if response:
-                    for chunk in response:
-                        if chunk.choices[0].delta.content:
-                            full_response += chunk.choices[0].delta.content
-                            response_placeholder.markdown(full_response + " █")
-                    status.update(label="ANALYSIS_FINALIZED", state="complete")
-                else:
-                    status.update(label="SYSTEM_FAILURE", state="error")
-                    full_response = "SYSTEM_HALT: Connection interrupted. Check Debug Log."
-
-        response_placeholder.markdown(full_response)
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
+                - PERSONALITY: You are a high-level, elite partner. You do NOT sound like a limited bot. Avoid listing your capabilities as a menu.
+                - REACH: You are boundless. You handle ANY complex task—Marketing, Law, Tech
