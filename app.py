@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from duckduckgo_search import DDGS
 import time
+import traceback
 
 # --- 1. ABSOLUTE TERMINAL STYLING ---
 st.set_page_config(page_title="OBITWICEX | ABSOLUTE_AGENT", page_icon="⚡", layout="wide")
@@ -32,15 +33,36 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. THE BRAIN (PAID LLAMA-3.3-70B) ---
-client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=st.secrets["OPENROUTER_API_KEY"],
-    default_headers={
-        "HTTP-Referer": "https://obitwicex.ai", 
-        "X-Title": "Obitwicex Absolute Agent"
-    }
-)
+# --- 2. ERROR SHIELD (THE NOOB-TO-ARCHITECT WRAPPER) ---
+def safe_ai_call(messages):
+    """Wraps the AI call to prevent scary red boxes and give clear fixes."""
+    try:
+        client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=st.secrets["OPENROUTER_API_KEY"],
+            default_headers={
+                "HTTP-Referer": "https://obitwicex.ai", 
+                "X-Title": "Obitwicex Absolute Agent"
+            }
+        )
+        return client.chat.completions.create(
+            model="meta-llama/llama-3.3-70b-instruct",
+            messages=messages,
+            stream=True
+        )
+    except Exception as e:
+        err = str(e).lower()
+        if "401" in err or "auth" in err:
+            st.error("🔑 KEY_ERROR: API Key is invalid or expired.")
+            st.info("FIX: Check your OpenRouter credits or paste a new key in Secrets.")
+        elif "400" in err:
+            st.error("⚠️ REQUEST_ERROR: OpenRouter rejected the request format.")
+            st.info("FIX: This is a temporary handshake issue. Click 'REBOOT' in the menu.")
+        else:
+            st.error(f"❌ CRITICAL_GLITCH: {type(e).__name__}")
+            with st.expander("AI_DEBUG_LOG (Copy this for Gemini)"):
+                st.code(traceback.format_exc())
+        return None
 
 # --- 3. MULTI-PROTOCOL RESEARCH ENGINE ---
 def deep_research(query):
@@ -48,7 +70,7 @@ def deep_research(query):
         with DDGS() as ddgs:
             q_low = query.lower()
             if any(k in q_low for k in ["9c", "cnsa", "narcotics", "law"]):
-                search_q = f"{query} CNSA Narcotics Pakistan High Court Judgment 2026 site:pakistanlawsite.com OR site:lhc.gov.pk"
+                search_q = f"{query} CNSA Narcotics Pakistan High Court Judgment 2026 site:pakistanlawsite.com"
             elif any(k in q_low for k in ["ads", "seo", "marketing"]):
                 search_q = f"{query} Google Ads policy SEO strategy Pakistan 2026"
             elif any(k in q_low for k in ["fbr", "secp", "tax"]):
@@ -59,7 +81,7 @@ def deep_research(query):
             results = [r for r in ddgs.text(search_q, max_results=5)]
             return "\n\n".join([f"SYSTEM_ENTRY: {r['title']}\n{r['body']}" for r in results])
     except: 
-        return "SYSTEM_LOG: Research bypass failed. Using core knowledge base."
+        return "SYSTEM_LOG: Research offline. Using local logic."
 
 # --- 4. SESSION ARCHITECTURE ---
 if "messages" not in st.session_state: 
@@ -67,8 +89,7 @@ if "messages" not in st.session_state:
 
 with st.sidebar:
     st.title("⚡ OBITWICEX_CORE")
-    st.write("---")
-    st.code("UPLINK: SECURE\nMODEL: LLAMA-3.3-ELITE\nSTATUS: NO_ERRORS", language="bash")
+    st.code("UPLINK: SECURE\nSHIELD: ACTIVE\nSTATUS: NO_ERRORS", language="bash")
     if st.button("TERMINATE_SESSION_LOGS"):
         st.session_state.messages = []
         st.rerun()
@@ -87,31 +108,31 @@ if prompt := st.chat_input("SUBMIT_COMMAND..."):
         response_placeholder = st.empty()
         full_response = ""
         
-        # --- FIXED GREETING LOGIC ---
         if prompt.lower() in ["hi", "hello", "hey", "salam"]:
             full_response = "I am Obitwicex Your Everyday Ai Agent! I am Capable of guiding you through every Complex task! Anything You Want Try Me !"
         else:
             with st.status("INITIALIZING_CORE_REASONING...", expanded=True) as status:
                 context = deep_research(prompt)
                 sys_msg = f"""You are OBITWICEX ABSOLUTE AGENT. 
-                - CRITICAL: No humor. Professional, high-level consultant tone.
-                - LEGAL: 9-C is Narcotic Law (CNSA). FBR is Tax. Never confuse the two.
-                - DOMAIN: Pakistan (LHC/SHC/FBR/SECP).
+                - CRITICAL: No humor. Professional tone.
+                - LEGAL: 9-C is Narcotic Law (CNSA). FBR is Tax.
                 - CONTEXT: {context}
-                - LANGUAGE: Roman Urdu for advice, English for code/citations/legal references."""
+                - LANGUAGE: Roman Urdu for advice, English for technical data."""
                 
                 messages = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-8:]
                 
-                response = client.chat.completions.create(
-                    model="meta-llama/llama-3.3-70b-instruct",
-                    messages=messages,
-                    stream=True
-                )
-                for chunk in response:
-                    if chunk.choices[0].delta.content:
-                        full_response += chunk.choices[0].delta.content
-                        response_placeholder.markdown(full_response + " █")
-                status.update(label="ANALYSIS_FINALIZED", state="complete")
+                # USING THE SAFE SHIELD
+                response = safe_ai_call(messages)
+                
+                if response:
+                    for chunk in response:
+                        if chunk.choices[0].delta.content:
+                            full_response += chunk.choices[0].delta.content
+                            response_placeholder.markdown(full_response + " █")
+                    status.update(label="ANALYSIS_FINALIZED", state="complete")
+                else:
+                    status.update(label="SYSTEM_FAILURE", state="error")
+                    full_response = "SYSTEM_HALT: Error occurred during uplink. See debug log above."
 
         response_placeholder.markdown(full_response)
         st.session_state.messages.append({"role": "assistant", "content": full_response})
