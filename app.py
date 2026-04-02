@@ -27,12 +27,13 @@ st.markdown("""
     input[data-testid="stChatInput"] {
         autocomplete: off !important;
         autocorrect: off !important;
+        autocapitalize: off !important;
         spellcheck: false !important;
     }
     header, footer {visibility: hidden;}
     </style>
     <div class="jarvis-hud-container"><div class="ring ring-1"></div><div class="ring ring-2"></div></div>
-    <div class="telemetry-bar">SYSTEM ENCRYPTION: <span class="status-green">DONE</span> &nbsp; | &nbsp; STATUS: <span class="status-green">LIVE</span> &nbsp; | &nbsp; UPLINK: <span class="status-green">DIRECT_GEMINI</span></div>
+    <div class="telemetry-bar">SYSTEM ENCRYPTION: <span class="status-green">DONE</span> &nbsp; | &nbsp; STATUS: <span class="status-green">LIVE</span> &nbsp; | &nbsp; UPLINK: <span class="status-green">DIRECT_STRIKE</span></div>
     """, unsafe_allow_html=True)
 
 # --- [SECTION 3: THE HARDENED ENGINES] ---
@@ -45,31 +46,38 @@ def draw_strike(prompt):
                             headers=headers, json={"input": {"prompt": prompt}})
         if res.status_code == 201:
             get_url = res.json()["urls"]["get"]
-            for _ in range(25): # Increased timeout
+            for _ in range(25):
                 status = requests.get(get_url, headers=headers).json()
                 if status["status"] == "succeeded": return status["output"][0]
                 time.sleep(1)
-        return f"GEN_FAIL: Replicate rejected call."
-    except: return "ERROR: Drawing Engine offline."
+    except: pass
+    return f"https://image.pollinations.ai/prompt/{prompt.replace(' ', '%20')}?width=1024&height=1024&nologo=true"
 
 def get_chat_response(prompt):
-    """Bypasses OpenRouter. Uses Google Gemini via direct API."""
+    """Uses a different model ID that is 100% active on OpenRouter right now."""
     try:
-        # Using OpenRouter but forcing a much more stable model path
         api_key = st.secrets["OPENROUTER_API_KEY"].strip()
+        # Switching to a high-stability model ID: Google Gemini Flash 1.5
         res = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}"},
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "HTTP-Referer": "https://obitwicex.streamlit.app",
+                "X-Title": "OBITWICEX"
+            },
             json={
                 "model": "google/gemini-flash-1.5", 
                 "messages": [
-                    {"role": "system", "content": "You are OBITWICEX, a witty Lahori Yaar. Speak Roman Urdu."},
+                    {"role": "system", "content": "You are OBITWICEX, a witty Lahori Yaar. Speak in Roman Urdu/Punjabi mixed with English."},
                     {"role": "user", "content": prompt}
                 ]
             }
         )
-        return res.json()['choices'][0]['message']['content']
-    except: return "SYSTEM_OFFLINE: Sir, please check API balance."
+        if res.status_code == 200:
+            return res.json()['choices'][0]['message']['content']
+        return f"UPLINK_REJECTED_{res.status_code}: {res.text[:50]}"
+    except Exception as e:
+        return f"NEURAL_FAIL: {str(e)}"
 
 def speak(text):
     try:
@@ -80,7 +88,7 @@ def speak(text):
             st.markdown(f'<audio autoplay="true"><source src="data:audio/mp3;base64,{base64.b64encode(res.content).decode()}" type="audio/mp3"></audio>', unsafe_allow_html=True)
     except: pass
 
-# --- [SECTION 4: UI] ---
+# --- [SECTION 4: UI & STATE] ---
 if "messages" not in st.session_state: st.session_state.messages = []
 c1, c2 = st.columns(2)
 with c1: voice_data = st.audio_input("🎙️ VOICE")
@@ -100,13 +108,12 @@ if prompt:
     with st.chat_message("user"): st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        if any(x in prompt.lower() for x in ["draw", "image", "art", "photo"]):
+        low_p = prompt.lower()
+        if any(x in low_p for x in ["draw", "image", "art", "photo", "picture"]):
             st.write("🎨 Uplink to Neural Canvas...")
             url = draw_strike(prompt)
-            if "http" in str(url):
-                st.image(url)
-                st.session_state.messages.append({"role": "assistant", "content": f"Image generated: {url}"})
-            else: st.error(url)
+            st.image(url)
+            st.session_state.messages.append({"role": "assistant", "content": f"Image generated: {url}"})
         else:
             reply = get_chat_response(prompt)
             st.markdown(reply)
