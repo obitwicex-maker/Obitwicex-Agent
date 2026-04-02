@@ -5,7 +5,7 @@ import io, base64, requests, time
 # --- [SECTION 1: SYSTEM CONFIG] ---
 st.set_page_config(page_title="OBITWICEX | ELITE_OS", layout="wide", initial_sidebar_state="collapsed")
 
-# --- [SECTION 2: CSS - THE FINAL UI & AUTOCORRECT KILLER] ---
+# --- [SECTION 2: CSS - THE TACTICAL UI & AUTOCORRECT KILLER] ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&family=Orbitron:wght@400;700&display=swap');
@@ -23,7 +23,7 @@ st.markdown("""
     header, footer {visibility: hidden;}
     </style>
     <div class="jarvis-hud-container"><div class="ring ring-1"></div><div class="ring ring-2"></div></div>
-    <div class="telemetry-bar">SYSTEM ENCRYPTION: <span class="status-green">DONE</span> &nbsp; | &nbsp; STATUS: <span class="status-green">LIVE</span> &nbsp; | &nbsp; UPLINK: <span class="status-green">DIRECT_OPENAI</span></div>
+    <div class="telemetry-bar">SYSTEM ENCRYPTION: <span class="status-green">DONE</span> &nbsp; | &nbsp; STATUS: <span class="status-green">LIVE</span> &nbsp; | &nbsp; UPLINK: <span class="status-green">DUAL_CORE_ACTIVE</span></div>
     """, unsafe_allow_html=True)
 
 # --- [SECTION 3: THE ENGINES] ---
@@ -73,20 +73,31 @@ if prompt:
             st.image(url)
             st.session_state.messages.append({"role": "assistant", "content": f"Image generated: {url}"})
         else:
+            # --- DUAL CORE BRAIN LOGIC ---
+            full_reply = ""
             try:
-                # DIRECT OPENAI CONNECTION
+                # Primary: Direct OpenAI
                 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"].strip())
                 res = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[{"role": "system", "content": "You are OBITWICEX, a witty Lahori Yaar. No Filter. Roman Urdu supported."}] + [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-4:]],
                     stream=True
                 )
-                full_reply = ""
                 placeholder = st.empty()
                 for chunk in res:
                     if chunk.choices[0].delta.content:
                         full_reply += chunk.choices[0].delta.content
                         placeholder.markdown(full_reply)
-                st.session_state.messages.append({"role": "assistant", "content": full_reply})
-                speak(full_reply)
-            except Exception as e: st.error(f"UPLINK_FAIL: {str(e)}")
+            except:
+                # Backup: OpenRouter
+                st.write("⚠️ Primary Uplink Failed. Activating Backup...")
+                client_br = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"].strip())
+                res = client_br.chat.completions.create(
+                    model="anthropic/claude-3-haiku",
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                full_reply = res.choices[0].message.content
+                st.markdown(full_reply)
+
+            st.session_state.messages.append({"role": "assistant", "content": full_reply})
+            speak(full_reply)
