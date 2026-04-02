@@ -5,16 +5,13 @@ from datetime import datetime
 import io
 import base64
 
-# --- 1. PREMIUM GLASS HUD & TERMINAL STYLE ---
+# --- 1. PREMIUM GLASS HUD ---
 st.set_page_config(page_title="OBITWICEX | ELITE_OS", page_icon="⚡", layout="wide")
 
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&family=Orbitron:wght@400;700&display=swap');
-    
     .stApp { background-color: #010501; color: #FFFFFF; font-family: 'Fira Code', monospace; }
-    
-    /* TRIPLE-RING JARVIS HUD */
     .jarvis-hud-container {
         display: flex; justify-content: center; align-items: center;
         height: 250px; position: relative; width: 100%;
@@ -22,84 +19,52 @@ st.markdown("""
         margin-bottom: 20px;
     }
     .ring { position: absolute; border-radius: 50%; border: 1px solid transparent; }
-    .ring-1 { 
-        width: 220px; height: 220px; border-top: 2px solid #00E5FF; 
-        animation: spin 10s linear infinite; box-shadow: 0 0 15px #00E5FF;
-    }
-    .ring-2 { 
-        width: 180px; height: 180px; border-right: 2px solid #00838F; 
-        animation: spin 5s linear infinite reverse; 
-    }
-    .ring-3 { 
-        width: 100px; height: 100px; background: #00E5FF; 
-        opacity: 0.2; border-radius: 50%; animation: pulse 2s infinite; 
-    }
-    
+    .ring-1 { width: 220px; height: 220px; border-top: 2px solid #00E5FF; animation: spin 10s linear infinite; box-shadow: 0 0 15px #00E5FF; }
+    .ring-2 { width: 180px; height: 180px; border-right: 2px solid #00838F; animation: spin 5s linear infinite reverse; }
+    .ring-3 { width: 100px; height: 100px; background: #00E5FF; opacity: 0.2; border-radius: 50%; animation: pulse 2s infinite; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
     @keyframes pulse { 0%, 100% { transform: scale(0.8); opacity: 0.1; } 50% { transform: scale(1.1); opacity: 0.4; } }
-
-    /* CHAT HUD BOXES */
     div[data-testid="stChatMessage"] { 
-        background: rgba(255, 255, 255, 0.04);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(0, 229, 255, 0.1);
-        border-left: 4px solid #00E5FF;
-        border-radius: 0px 10px 10px 0px;
-        margin-bottom: 15px;
+        background: rgba(255, 255, 255, 0.04); backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 229, 255, 0.1); border-left: 4px solid #00E5FF;
+        border-radius: 0px 10px 10px 0px; margin-bottom: 15px;
     }
     div[data-testid="stChatMessageAvatarUser"], div[data-testid="stChatMessageAvatarAssistant"] { display: none; }
-    
-    /* HUD LABELS */
     .chat-label { font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 0.7rem; letter-spacing: 2px; margin-bottom: 5px; }
-
     header {visibility: hidden;} footer {visibility: hidden;}
     </style>
-    
     <div class="jarvis-hud-container">
-        <div class="ring ring-1"></div>
-        <div class="ring ring-2"></div>
-        <div class="ring ring-3"></div>
+        <div class="ring ring-1"></div><div class="ring ring-2"></div><div class="ring ring-3"></div>
     </div>
     """, unsafe_allow_html=True)
 
-# --- 2. CORE ENGINES (Vision, Browser, Auto-AI) ---
+# --- 2. MULTI-BRAIN CORE ---
 def encode_image(image_file):
     return base64.b64encode(image_file.read()).decode('utf-8')
 
 def search_web(query):
     try:
         with DDGS() as ddgs:
-            results = [r.get('body', '') for r in ddgs.text(query, max_results=3)]
-            return " ".join(results)
+            return " ".join([r.get('body', '') for r in ddgs.text(query, max_results=3)])
     except: return "DATA_UPLINK_OFFLINE"
 
 def agent_call(messages):
     try:
-        client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=st.secrets["OPENROUTER_API_KEY"].strip(),
-            default_headers={"HTTP-Referer": "https://obitwicex.ai", "X-Title": "Obitwicex Elite"}
-        )
+        client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"].strip())
         return client.chat.completions.create(
-            model="openrouter/auto", # DYNAMIC BEST-MODEL SELECTION
+            model="openrouter/auto", # OMNIPOTENT BRAIN SELECTION
             messages=messages,
             stream=True 
         )
     except Exception as e:
-        st.error(f"UPLINK_ERROR: {str(e)}")
-        return None
+        st.error(f"UPLINK_ERROR: {str(e)}"); return None
 
 # --- 3. SYSTEM INTERFACE ---
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
+if "messages" not in st.session_state: st.session_state.messages = []
 st.markdown("### ⚡ OMNIPOTENT_PROTOCOLS")
 col1, col2 = st.columns([1,1])
-with col1:
-    voice_data = st.audio_input("🎙️ VOICE_COMMAND")
-with col2:
-    screenshot = st.file_uploader("📸 VISUAL_SCAN", type=['png', 'jpg', 'jpeg'])
-
+with col1: voice_data = st.audio_input("🎙️ VOICE_COMMAND")
+with col2: screenshot = st.file_uploader("📸 VISUAL_SCAN", type=['png', 'jpg', 'jpeg'])
 st.divider()
 
 for m in st.session_state.messages:
@@ -110,13 +75,10 @@ for m in st.session_state.messages:
 
 # --- 4. EXECUTION FLOW ---
 prompt = st.chat_input("Submit Command, Sir...")
-
-# Handle Voice via OpenAI Whisper
 if voice_data:
     try:
         client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"].strip())
-        audio_file = io.BytesIO(voice_data.read())
-        audio_file.name = "voice.wav"
+        audio_file = io.BytesIO(voice_data.read()); audio_file.name = "voice.wav"
         prompt = client.audio.transcriptions.create(model="whisper-1", file=audio_file).text
     except: st.error("VOICE_AUTH_FAIL")
 
@@ -127,23 +89,14 @@ if prompt:
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        resp_placeholder = st.empty()
-        full_reply = ""
-        
-        # Build Multimodal Packet
+        resp_placeholder = st.empty(); full_reply = ""
         content = [{"type": "text", "text": prompt}]
         if screenshot:
             content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encode_image(screenshot)}"}})
 
-        sys_msg = """You are Obitwicex Omnipotent. Elite AI OS. 
-        1. Always greet with 'Assalam o Alaikum, Sir' or 'Salam, Sir'. 
-        2. Use Roman Urdu for chat. Use English for technical data.
-        3. If tasked with device control, output: 'EXECUTE: [ACTION] | [TARGET]'.
-        4. Use the web via SEARCH: [query] if needed."""
-        
+        sys_msg = "ROLE: OBITWICEX_JARVIS. Always start with 'Assalam o Alaikum, Sir'. Use Roman Urdu. Be elite, brief, and professional. Use SEARCH: [query] for web and EXECUTE: [action] | [target] for device. No extra talk."
         msgs = [{"role": "system", "content": sys_msg}]
-        for m in st.session_state.messages[-4:]:
-            msgs.append({"role": m["role"], "content": m["content"]})
+        for m in st.session_state.messages[-4:]: msgs.append({"role": m["role"], "content": m["content"]})
         msgs[-1]["content"] = content
 
         stream = agent_call(msgs)
@@ -153,15 +106,13 @@ if prompt:
                     full_reply += chunk.choices[0].delta.content
                     resp_placeholder.markdown(f"<div class='chat-label'>[OBITWICEX_RESPONSE]</div>\n\n{full_reply} █", unsafe_allow_html=True)
             
-            # Browser task logic
             if "SEARCH:" in full_reply:
-                query = full_reply.split("SEARCH:")[1].strip(" []")
-                with st.spinner(f"🌐 BROWSER_LINK_ACTIVE: Searching {query}..."):
-                    web_data = search_web(query)
+                q = full_reply.split("SEARCH:")[1].strip(" []")
+                with st.spinner(f"🌐 SEARCHING..."):
+                    web_data = search_web(q)
                     msgs.append({"role": "assistant", "content": full_reply})
                     msgs.append({"role": "user", "content": f"Results: {web_data}"})
-                    new_stream = agent_call(msgs)
-                    full_reply = "" 
+                    new_stream = agent_call(msgs); full_reply = "" 
                     for chunk in new_stream:
                         if chunk.choices[0].delta.content:
                             full_reply += chunk.choices[0].delta.content
