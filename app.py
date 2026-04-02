@@ -6,13 +6,13 @@ import io, base64, requests
 try:
     import replicate
 except Exception:
-    st.warning("⚡ SYSTEM: INITIALIZING NEURAL LAYERS... REFRESH IN 30s.")
+    st.info("⚡ SYSTEM: ARMING GENERATION MODULES... REFRESH IN 30 SECONDS.")
     st.stop()
 
 # --- [SECTION 1: SYSTEM CONFIG] ---
 st.set_page_config(page_title="OBITWICEX | ELITE_OS", layout="wide", initial_sidebar_state="collapsed")
 
-# --- [SECTION 2: CSS - THE LAYOUT FIX] ---
+# --- [SECTION 2: CSS - THE TACTICAL SLIM UI] ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&family=Orbitron:wght@400;700&display=swap');
@@ -26,60 +26,56 @@ st.markdown("""
     /* CHAT BUBBLES */
     div[data-testid="stChatMessage"] { background: rgba(0, 229, 255, 0.03); border-left: 3px solid #00E5FF; margin-bottom: 8px; border-radius: 0 10px 10px 0; padding: 10px; }
     
-    /* THE DOCK - FORCING INLINE */
-    [data-testid="stForm"] { border: none !important; padding: 0 !important; }
+    /* THE DOCK - NO BORDERS */
+    [data-testid="stForm"] { border: none !important; padding: 0 !important; background: transparent !important; }
     
-    /* Making File Uploader and Audio Input Compact */
-    .stFileUploader section { padding: 0 !important; min-height: unset !important; }
+    /* BUTTON & UPLOADER COMPRESSION */
+    .stFileUploader section { padding: 0 !important; min-height: unset !important; border: 1px solid #00E5FF !important; border-radius: 5px; }
     .stFileUploader label { display: none; }
     
-    /* Styling the Text Input */
+    /* TEXT INPUT STYLING */
     .stTextInput input { 
         background: #000 !important; 
         color: #fff !important; 
         border: 1px solid #00E5FF !important; 
-        border-radius: 20px !important; 
-        padding-left: 15px !important;
+        border-radius: 15px !important; 
     }
     .stTextInput input:focus { border-color: #00FF41 !important; box-shadow: 0 0 10px #00FF41 !important; }
 
-    /* Fix column alignment */
+    /* ALIGNMENT FIX */
     [data-testid="column"] { display: flex; align-items: center; justify-content: center; }
-
-    header, footer {visibility: hidden;}
+    header, footer { visibility: hidden; }
     </style>
     <div class="jarvis-hud"><div class="ring-1"></div></div>
     """, unsafe_allow_html=True)
 
-# --- [SECTION 3: GEN ENGINES] ---
+# --- [SECTION 3: GENERATION ENGINES] ---
 def gen_art(prompt):
     try:
         output = replicate.run("black-forest-labs/flux-dev", input={"prompt": prompt, "guidance_scale": 7.5})
         return output[0]
-    except Exception: return None
+    except: return None
 
 def gen_motion(prompt):
     try:
         output = replicate.run("luma/ray", input={"prompt": prompt})
         return output
-    except Exception: return None
+    except: return None
 
 # --- [SECTION 4: DOCK & HISTORY] ---
 if "messages" not in st.session_state: st.session_state.messages = []
 
-# Container for messages to keep them above the dock
-chat_placeholder = st.container()
-
-with chat_placeholder:
+# Message history container
+msg_container = st.container()
+with msg_container:
     for m in st.session_state.messages:
         with st.chat_message(m["role"]):
             content = m['content'][0]['text'] if isinstance(m['content'], list) else m['content']
             st.markdown(content)
 
-# THE SLIM DOCK
 st.write("---")
-with st.form("dock", clear_on_submit=True):
-    # Adjusting column widths for a tighter fit
+# THE TACTICAL DOCK FORM
+with st.form("uplink_dock", clear_on_submit=True):
     c1, c2, c3, c4, c5 = st.columns([0.05, 0.1, 0.1, 0.65, 0.1])
     with c1: loc = st.checkbox("📍", label_visibility="collapsed")
     with c2: img_up = st.file_uploader("📸", type=['jpg','png'], label_visibility="collapsed")
@@ -94,23 +90,23 @@ if push:
         try:
             client_openai = OpenAI(api_key=st.secrets["OPENAI_API_KEY"].strip())
             final_prompt = client_openai.audio.transcriptions.create(model="whisper-1", file=io.BytesIO(voice_in.read())).text
-        except: st.error("VOICE_LINK_LOST")
+        except: st.error("VOICE_FAIL")
     
     if final_prompt:
         st.session_state.messages.append({"role": "user", "content": final_prompt})
         with st.chat_message("assistant"):
             if any(x in final_prompt.lower() for x in ["draw", "image", "generate", "picture", "art"]):
-                st.write("🎨 Uplink to Flux-Dev...")
+                st.info("📡 UPLINK: GENERATING UNFILTERED ART...")
                 res = gen_art(final_prompt)
                 if res:
                     st.image(res)
-                    st.session_state.messages.append({"role": "assistant", "content": f"Generated Image: {res}"})
+                    st.session_state.messages.append({"role": "assistant", "content": f"Image: {res}"})
             elif any(x in final_prompt.lower() for x in ["video", "motion", "render", "clip"]):
-                st.write("🎬 Uplink to Luma-Ray...")
+                st.info("📡 UPLINK: RENDERING CINEMATIC VIDEO...")
                 res = gen_motion(final_prompt)
                 if res:
                     st.video(res)
-                    st.session_state.messages.append({"role": "assistant", "content": f"Generated Video: {res}"})
+                    st.session_state.messages.append({"role": "assistant", "content": f"Video: {res}"})
             else:
                 client_or = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"].strip())
                 stream = client_or.chat.completions.create(
