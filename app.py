@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- [SECTION 2: PREMIUM HUD & VISUAL ENGINE] ---
+# --- [SECTION 2: PREMIUM HUD & STEALTH TELEMETRY] ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&family=Orbitron:wght@400;700&display=swap');
@@ -23,26 +23,32 @@ st.markdown("""
     
     .jarvis-hud-container {
         display: flex; justify-content: center; align-items: center;
-        height: 250px; position: relative; width: 100%;
+        height: 200px; position: relative; width: 100%;
         background: radial-gradient(circle, rgba(0,229,255,0.1) 0%, transparent 80%);
-        margin-bottom: 20px;
+        margin-bottom: 10px;
     }
     .ring { position: absolute; border-radius: 50%; border: 1px solid transparent; }
-    .ring-1 { 
-        width: 220px; height: 220px; border-top: 2px solid #00E5FF; 
-        animation: spin 10s linear infinite; box-shadow: 0 0 15px #00E5FF;
-    }
-    .ring-2 { 
-        width: 180px; height: 180px; border-right: 2px solid #00838F; 
-        animation: spin 5s linear infinite reverse; 
-    }
-    .ring-3 { 
-        width: 100px; height: 100px; background: #00E5FF; 
-        opacity: 0.2; border-radius: 50%; animation: pulse 2s infinite; 
-    }
+    .ring-1 { width: 180px; height: 180px; border-top: 2px solid #00E5FF; animation: spin 10s linear infinite; box-shadow: 0 0 15px #00E5FF; }
+    .ring-2 { width: 150px; height: 150px; border-right: 2px solid #00838F; animation: spin 5s linear infinite reverse; }
+    .ring-3 { width: 80px; height: 80px; background: #00E5FF; opacity: 0.2; border-radius: 50%; animation: pulse 2s infinite; }
     
     @keyframes spin { 100% { transform: rotate(360deg); } }
     @keyframes pulse { 0%, 100% { transform: scale(0.8); opacity: 0.1; } 50% { transform: scale(1.1); opacity: 0.4; } }
+
+    /* TELEMETRY BAR STYLE */
+    .telemetry-bar {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 0.65rem;
+        color: #00E5FF;
+        text-align: center;
+        letter-spacing: 1.5px;
+        background: rgba(0, 229, 255, 0.05);
+        padding: 5px;
+        border-radius: 5px;
+        border: 1px solid rgba(0, 229, 255, 0.1);
+        margin-bottom: 20px;
+    }
+    .status-green { color: #00FF41; text-shadow: 0 0 5px #00FF41; }
 
     div[data-testid="stChatMessage"] { 
         background: rgba(255, 255, 255, 0.04);
@@ -63,32 +69,29 @@ st.markdown("""
         <div class="ring ring-2"></div>
         <div class="ring ring-3"></div>
     </div>
+
+    <div class="telemetry-bar">
+        SYSTEM ENCRYPTION: <span class="status-green">DONE</span> &nbsp; | &nbsp; 
+        STATUS CHECK: <span class="status-green">LIVE</span> &nbsp; | &nbsp; 
+        UPLINK: <span class="status-green">OPTIMAL</span>
+    </div>
     """, unsafe_allow_html=True)
 
 # --- [SECTION 3: CORE FUNCTIONAL ENGINES] ---
 
 def speak_response(text):
-    """ElevenLabs TTS Integration for Jarvis/Yaar Voice"""
     try:
         api_key = st.secrets["ELEVENLABS_API_KEY"]
-        voice_id = "pNInz6obpgnuM0s4qhGR" # George (Elite British)
+        voice_id = "pNInz6obpgnuM0s4qhGR" 
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
-        
         headers = {"Accept": "audio/mpeg", "xi-api-key": api_key, "Content-Type": "application/json"}
-        data = {
-            "text": text, 
-            "model_id": "eleven_multilingual_v2", 
-            "voice_settings": {"stability": 0.5, "similarity_boost": 0.8}
-        }
-        
+        data = {"text": text, "model_id": "eleven_multilingual_v2", "voice_settings": {"stability": 0.5, "similarity_boost": 0.8}}
         response = requests.post(url, json=data, headers=headers)
         if response.status_code == 200:
             b64 = base64.b64encode(response.content).decode()
-            # Force browser to autoplay the speech
             md = f'<audio autoplay="true"><source src="data:audio/mp3;base64,{b64}" type="audio/mp3"></audio>'
             st.markdown(md, unsafe_allow_html=True)
-    except:
-        pass
+    except: pass
 
 def encode_image(image_file):
     return base64.b64encode(image_file.read()).decode('utf-8')
@@ -97,17 +100,14 @@ def search_web(query):
     try:
         with DDGS() as ddgs:
             return " ".join([r.get('body', '') for r in ddgs.text(query, max_results=3)])
-    except:
-        return "DATA_UPLINK_OFFLINE"
+    except: return "DATA_OFFLINE"
 
 def agent_call(messages):
     models = ["anthropic/claude-3.5-sonnet", "openai/gpt-4o", "meta-llama/llama-3.3-70b-instruct"]
     client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"].strip())
     for model_id in models:
-        try:
-            return client.chat.completions.create(model=model_id, messages=messages, stream=True)
-        except:
-            continue 
+        try: return client.chat.completions.create(model=model_id, messages=messages, stream=True)
+        except: continue 
     return None
 
 # --- [SECTION 4: UI & STATE MANAGEMENT] ---
@@ -115,12 +115,11 @@ def agent_call(messages):
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-st.markdown("### ⚡ OMNIPOTENT_PROTOCOLS")
 col1, col2 = st.columns(2)
 with col1:
-    voice_data = st.audio_input("🎙️ VOICE_LINK")
+    voice_data = st.audio_input("🎙️ VOICE")
 with col2:
-    screenshot = st.file_uploader("📸 VISUAL_SCAN", type=['png', 'jpg', 'jpeg'])
+    screenshot = st.file_uploader("📸 SCAN", type=['png', 'jpg', 'jpeg'])
 
 st.divider()
 
@@ -133,15 +132,14 @@ for m in st.session_state.messages:
 
 # --- [SECTION 5: EXECUTION LOGIC] ---
 
-prompt = st.chat_input("Submit Command, Sir...")
+prompt = st.chat_input("Command, Sir...")
 
 if voice_data:
     try:
         client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"].strip())
         audio_file = io.BytesIO(voice_data.read()); audio_file.name = "v.wav"
         prompt = client.audio.transcriptions.create(model="whisper-1", file=audio_file).text
-    except:
-        st.error("VOICE_AUTH_FAIL")
+    except: st.error("VOICE_FAIL")
 
 if prompt:
     user_payload = [{"type": "text", "text": prompt}]
@@ -150,22 +148,13 @@ if prompt:
     
     st.session_state.messages.append({"role": "user", "content": user_payload})
     with st.chat_message("user"):
-        st.markdown("<div class='chat-label'>[USER_UPLINK]</div>", unsafe_allow_html=True)
-        st.markdown(prompt)
+        st.markdown("<div class='chat-label'>[USER_UPLINK]</div>", unsafe_allow_html=True); st.markdown(prompt)
 
     with st.chat_message("assistant"):
         resp_placeholder = st.empty(); full_reply = ""
-        
-        sys_msg = """
-        ROLE: OBITWICEX_JARVIS / BEST YAAR. GREET: 'Assalam o Alaikum, Sir'. 
-        - IMPORTANT: YOU HAVE VOICE ENABLED. Speak out loud through the system.
-        - Detect Lang (Roman Urdu/Eng). Informal, sharp, witty. No filters for slangs. 
-        - Match trolls with trolls. Use SEARCH: [q] or EXECUTE: [a]|[t].
-        """
-        
+        sys_msg = "ROLE: OBITWICEX_JARVIS. GREET: 'Assalam o Alaikum, Sir'. Inform, sharp, witty BEST YAAR. Match language. Voice enabled. Match trolls. USE SEARCH: [q] or EXECUTE: [a]|[t]."
         msgs = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-6:]
         stream = agent_call(msgs)
-        
         if stream:
             for chunk in stream:
                 if chunk.choices[0].delta.content:
@@ -183,7 +172,6 @@ if prompt:
                         full_reply += chunk.choices[0].delta.content
                         resp_placeholder.markdown(f"<div class='chat-label'>[OBITWICEX_YAAR]</div>\n\n{full_reply} █", unsafe_allow_html=True)
             
-            # --- [CRITICAL: TRIGGER SPEECH] ---
             if full_reply:
                 speak_response(full_reply)
                 st.session_state.messages.append({"role": "assistant", "content": full_reply})
