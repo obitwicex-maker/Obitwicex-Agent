@@ -5,44 +5,51 @@ from dotenv import load_dotenv
 from duckduckgo_search import DDGS
 import time
 import traceback
+from datetime import datetime
 
-# --- 1. ABSOLUTE TERMINAL STYLING ---
-st.set_page_config(page_title="OBITWICEX | ABSOLUTE_AGENT", page_icon="⚡", layout="wide")
+# --- 1. OBITWICEX TERMINAL STYLING ---
+st.set_page_config(page_title="OBITWICEX | AI_AGENT", page_icon="🤖", layout="wide")
 load_dotenv()
 
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap');
     .stApp { background-color: #050505; color: #00FF41; }
-    .stMarkdown p, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { 
-        font-family: 'Fira Code', monospace; 
-        color: #00FF41 !important; 
-        text-shadow: 0 0 2px #00FF41;
-    }
+    
+    /* CHAT HUD */
     div[data-testid="stChatMessage"] { 
-        background-color: rgba(5, 5, 5, 0.95);
-        border: 1px solid #00FF41;
-        border-radius: 2px;
+        background: rgba(0, 255, 65, 0.03);
+        border-left: 2px solid #00FF41;
+        border-radius: 0px;
         margin-bottom: 10px;
     }
+    .stMarkdown p { font-family: 'Fira Code', monospace; color: #00FF41 !important; }
+    
+    /* SIDEBAR STYLING */
+    [data-testid="stSidebar"] { background-color: #0a130a; border-right: 1px solid #1f3f1f; }
     header {visibility: hidden;}
     footer {visibility: hidden;}
-    ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-track { background: #050505; }
-    ::-webkit-scrollbar-thumb { background: #00FF41; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. ERROR SHIELD (VERIFIED WRAPPER) ---
-def safe_ai_call(messages):
+# --- 2. CORE ENGINES (Transcribe & Brain) ---
+def transcribe_voice(audio_file):
+    try:
+        client = OpenAI(api_key=st.secrets["OPENROUTER_API_KEY"]) # Using OpenAI for Whisper
+        transcript = client.audio.transcriptions.create(
+            model="whisper-1", 
+            file=audio_file
+        )
+        return transcript.text
+    except Exception as e:
+        return f"Error transcribing: {str(e)}"
+
+def agent_call(messages):
     try:
         client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=st.secrets["OPENROUTER_API_KEY"],
-            default_headers={
-                "HTTP-Referer": "https://obitwicex.ai", 
-                "X-Title": "Obitwicex Absolute Agent"
-            }
+            default_headers={"HTTP-Referer": "https://obitwicex.ai", "X-Title": "Obitwicex Agent"}
         )
         return client.chat.completions.create(
             model="meta-llama/llama-3.3-70b-instruct",
@@ -50,93 +57,71 @@ def safe_ai_call(messages):
             stream=True
         )
     except Exception as e:
-        err_msg = str(e).lower()
-        if "401" in err_msg or "auth" in err_msg:
-            st.error("🔑 KEY_ERROR: API Key issue. Check OpenRouter.")
-        else:
-            st.error(f"❌ CRITICAL_GLITCH: {type(e).__name__}")
-            with st.expander("AI_DEBUG_LOG"):
-                st.code(traceback.format_exc())
+        st.error(f"UPLINK_FAILURE: {type(e).__name__}")
         return None
 
-# --- 3. MULTI-PROTOCOL RESEARCH ENGINE ---
-def deep_research(query):
-    try:
-        with DDGS() as ddgs:
-            q_low = query.lower()
-            world_locs = ["london", "new york", "toronto", "dubai", "canada", "usa", "uk", "karachi", "lahore", "islamabad"]
-            location = "Global"
-            for loc in world_locs:
-                if loc in q_low:
-                    location = loc.title()
-                    break
-
-            if any(k in q_low for k in ["9c", "cnsa", "narcotics", "law"]):
-                search_q = f"{query} CNSA Narcotics {location} Case Law Judgment"
-            elif any(k in q_low for k in ["ads", "seo", "marketing", "copy", "strategy"]):
-                search_q = f"{query} {location} marketing SEO benchmarks 2026"
-            elif any(k in q_low for k in ["fbr", "secp", "tax", "irs", "cra"]):
-                search_q = f"{query} {location} tax regulation 2026"
-            else:
-                search_q = f"{query} {location} industry trends technology 2026"
-                
-            results = [r for r in ddgs.text(search_q, max_results=5)]
-            return "\n\n".join([f"SYSTEM_ENTRY: {r['title']}\n{r['body']}" for r in results])
-    except: 
-        return "SYSTEM_LOG: Research bypass active."
-
-# --- 4. SESSION ARCHITECTURE ---
-if "messages" not in st.session_state: 
+# --- 3. THE INTERFACE ---
+if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# Optional Voice Feature in Sidebar
 with st.sidebar:
-    st.title("⚡ OBITWICEX_CORE")
-    st.code("UPLINK: SECURE\nSHIELD: ACTIVE\nSTATUS: NO_LIMITS", language="bash")
-    if st.button("TERMINATE_SESSION_LOGS"):
+    st.title("🤖 OBITWICEX_AI")
+    st.markdown("---")
+    st.subheader("🎙️ Voice Command (Optional)")
+    voice_input = st.audio_input("Tap to speak...")
+    
+    if voice_input:
+        with st.spinner("Processing voice..."):
+            text_from_voice = transcribe_voice(voice_input)
+            st.info(f"Transcribed: {text_from_voice}")
+            # Injecting voice into chat logic
+            st.session_state.voice_trigger = text_from_voice
+
+    st.markdown("---")
+    if st.button("TERMINATE SESSION"):
         st.session_state.messages = []
         st.rerun()
 
+# Display Chat History
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- 5. THE ABSOLUTE ENGINE ---
-if prompt := st.chat_input("SUBMIT_COMMAND..."):
+# --- 4. THE PRIMARY CHAT LOGIC ---
+prompt = st.chat_input("Type your command here...")
+
+# If voice was used, override the prompt
+if "voice_trigger" in st.session_state:
+    prompt = st.session_state.voice_trigger
+    del st.session_state.voice_trigger
+
+if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"): 
+    with st.chat_message("user"):
         st.markdown(f"> {prompt}")
 
     with st.chat_message("assistant"):
-        response_placeholder = st.empty()
-        full_response = ""
+        response_ph = st.empty()
+        full_res = ""
         prompt_low = prompt.lower()
-        
-        # --- EASTER EGGS & GREETINGS ---
-        if prompt_low in ["hi", "hello", "hey", "salam"]:
-            full_response = "I am Obitwicex Your Everyday Ai Agent! I am Capable of guiding you through every Complex task! Anything You Want Try Me !"
-        
-        elif "ahmad ali kala" in prompt_low:
-            full_response = "Hanji! Ahmad Ali Kala? Woh mera dost nahi hai. Baat Bazaar me Rakhu ga, aur uski Dukaan me hi Kholu ga. Samjhay?"
 
+        # Ahmad Ali Kala Logic
+        if "ahmad ali kala" in prompt_low:
+            full_res = "Obitwicex Agent here. Ahmad Ali Kala? Baat bazaar mein nahi rakhunga, dukan uski wahin kholunga jahan usne sochi bhi nahi hogi. Command confirmed."
         else:
-            with st.status("INITIALIZING_CORE_REASONING...", expanded=True) as status:
-                context = deep_research(prompt)
-                
-                # --- VERIFIED SYSTEM PROMPT ---
-                sys_msg = f"You are OBITWICEX ABSOLUTE AGENT. You are an elite, raw, and authentic partner. Understand local Punjabi/Urdu slang and context—don't give robotic 'safe' answers if the user is joking. Match the user's energy. 9-C is Narcotic Law (CNSA). Context: {context}. Speak in Roman Urdu for advice, English for data."
-                
-                messages = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-8:]
-                response = safe_ai_call(messages)
-                
-                if response:
-                    for chunk in response:
-                        if chunk.choices[0].delta.content:
-                            full_response += chunk.choices[0].delta.content
-                            response_placeholder.markdown(full_response + " █")
-                    status.update(label="ANALYSIS_FINALIZED", state="complete")
-                else:
-                    status.update(label="SYSTEM_FAILURE", state="error")
-                    full_response = "SYSTEM_HALT: Check Debug Log."
+            sys_msg = f"You are Obitwicex Ai Agent. Professional, raw, and highly intelligent. User is Obaid Butt. Current time {datetime.now().strftime('%H:%M')}. Use Roman Urdu for advice, English for technical data."
+            
+            msgs = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-10:]
+            res = agent_call(msgs)
+            
+            if res:
+                for chunk in res:
+                    if chunk.choices[0].delta.content:
+                        full_res += chunk.choices[0].delta.content
+                        response_ph.markdown(full_res + " █")
+            else:
+                full_res = "Connection fracture. Check system status."
 
-        response_placeholder.markdown(full_response)
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
+        response_ph.markdown(full_res)
+        st.session_state.messages.append({"role": "assistant", "content": full_res})
