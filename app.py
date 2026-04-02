@@ -1,8 +1,6 @@
 import streamlit as st
 from openai import OpenAI
-from duckduckgo_search import DDGS
-import io, base64, requests
-from datetime import datetime
+import io, base64, requests, time
 
 # --- [SECTION 1: SYSTEM CONFIGURATION] ---
 st.set_page_config(
@@ -41,46 +39,42 @@ st.markdown("""
         border-radius: 0px 10px 10px 0px; margin-bottom: 15px;
     }
     div[data-testid="stChatMessageAvatarUser"], div[data-testid="stChatMessageAvatarAssistant"] { display: none; }
-    .chat-label { font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 0.7rem; letter-spacing: 2px; margin-bottom: 5px; }
     header {visibility: hidden;} footer {visibility: hidden;}
     </style>
     <div class="jarvis-hud-container"><div class="ring ring-1"></div><div class="ring ring-2"></div><div class="ring ring-3"></div></div>
-    <div class="telemetry-bar">SYSTEM ENCRYPTION: <span class="status-green">DONE</span> &nbsp; | &nbsp; STATUS CHECK: <span class="status-green">LIVE</span> &nbsp; | &nbsp; UPLINK: <span class="status-green">OPTIMAL</span></div>
+    <div class="telemetry-bar">SYSTEM ENCRYPTION: <span class="status-green">DONE</span> | UPLINK: <span class="status-green">OPENROUTER_PRIMARY</span></div>
     """, unsafe_allow_html=True)
 
-# --- [SECTION 3: CORE & GENERATION ENGINES] ---
-def gen_art(prompt):
+# --- [SECTION 3: OPENROUTER GENERATION ENGINE] ---
+def gen_art_openrouter(prompt):
     try:
-        # RAW API CALL to bypass library version conflicts
-        api_token = st.secrets["REPLICATE_API_TOKEN"].strip()
-        # Flux-Schnell via Replicate API
-        model_url = "https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions"
-        headers = {"Authorization": f"Token {api_token}", "Content-Type": "application/json"}
-        response = requests.post(model_url, headers=headers, json={"input": {"prompt": prompt}})
-        
-        if response.status_code == 201:
-            prediction = response.json()
-            poll_url = prediction["urls"]["get"]
-            # Polling for result
-            while True:
-                poll_res = requests.get(poll_url, headers=headers).json()
-                if poll_res["status"] == "succeeded": return poll_res["output"][0]
-                if poll_res["status"] == "failed": return "ERROR: Generation Failed."
-        return f"ERROR: API_REJECTED_{response.status_code}"
-    except Exception as e: return f"GEN_FAIL: {str(e)}"
+        api_key = st.secrets["OPENROUTER_API_KEY"].strip()
+        # Using OpenRouter's Image Generation Endpoint
+        # Model: "stability-ai/stable-diffusion-xl" or "google/imagen-3"
+        response = requests.post(
+            url="https://openrouter.ai/api/v1/images/generations",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "prompt": prompt,
+                "model": "stability-ai/sdxl", # High quality, widely available on OpenRouter
+            }
+        )
+        if response.status_code == 200:
+            return response.json()["data"][0]["url"]
+        else:
+            return f"ERROR_{response.status_code}: {response.text}"
+    except Exception as e:
+        return f"GEN_FAIL: {str(e)}"
 
 def speak_response(text):
     try:
         api_key = st.secrets["ELEVENLABS_API_KEY"]
         url = f"https://api.elevenlabs.io/v1/text-to-speech/pNInz6obpgnuM0s4qhGR"
         headers = {"Accept": "audio/mpeg", "xi-api-key": api_key, "Content-Type": "application/json"}
-        response = requests.post(url, json={"text": text, "model_id": "eleven_multilingual_v2"}, headers=headers)
-        if response.status_code == 200:
-            st.markdown(f'<audio autoplay="true"><source src="data:audio/mp3;base64,{base64.b64encode(response.content).decode()}" type="audio/mp3"></audio>', unsafe_allow_html=True)
+        res = requests.post(url, json={"text": text, "model_id": "eleven_multilingual_v2"}, headers=headers)
+        if res.status_code == 200:
+            st.markdown(f'<audio autoplay="true"><source src="data:audio/mp3;base64,{base64.b64encode(res.content).decode()}" type="audio/mp3"></audio>', unsafe_allow_html=True)
     except: pass
-
-def encode_image(image_file):
-    return base64.b64encode(image_file.read()).decode('utf-8')
 
 # --- [SECTION 4: UI & STATE MANAGEMENT] ---
 if "messages" not in st.session_state: st.session_state.messages = []
@@ -91,47 +85,34 @@ st.divider()
 
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
-        st.markdown(f"<div class='chat-label'>[{'USER_UPLINK' if m['role']=='user' else 'OBITWICEX_YAAR'}]</div>", unsafe_allow_html=True)
-        text = m['content'][0]['text'] if isinstance(m['content'], list) else m['content']
-        st.markdown(text)
+        st.markdown(m['content'][0]['text'] if isinstance(m['content'], list) else m['content'])
 
 # --- [SECTION 5: EXECUTION LOGIC] ---
 prompt = st.chat_input("Command, Sir...")
 
-if voice_data:
-    try:
-        client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"].strip())
-        prompt = client.audio.transcriptions.create(model="whisper-1", file=io.BytesIO(voice_data.read())).text
-    except: st.error("VOICE_FAIL")
-
 if prompt:
-    user_payload = [{"type": "text", "text": prompt}]
-    if screenshot:
-        user_payload.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encode_image(screenshot)}"}})
-    st.session_state.messages.append({"role": "user", "content": user_payload})
+    st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"): st.markdown(prompt)
 
     with st.chat_message("assistant"):
         low_p = prompt.lower()
-        if any(x in low_p for x in ["draw", "image", "generate picture", "photo", "art"]):
-            st.write("🎨 **Uplink to Flux-Schnell... Processing Neural Layer...**")
-            res = gen_art(prompt)
-            if "ERROR" in str(res): st.error(res)
+        if any(x in low_p for x in ["draw", "image", "art", "photo", "picture"]):
+            st.write("🎨 **Routing through OpenRouter Neural Net...**")
+            res = gen_art_openrouter(prompt)
+            if "ERROR" in str(res):
+                st.error(res)
+                st.info("Sir, ensure your OpenRouter account has a few cents of credit for image generation.")
             else:
                 st.image(res)
-                st.session_state.messages.append({"role": "assistant", "content": f"Image generated: {res}"})
+                st.session_state.messages.append({"role": "assistant", "content": f"Generated Image: {res}"})
         else:
-            resp_placeholder = st.empty(); full_reply = ""
             client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"].strip())
             stream = client.chat.completions.create(
                 model="anthropic/claude-3.5-sonnet", 
-                messages=[{"role": "system", "content": "You are OBITWICEX, a witty Lahori Yaar."}] + [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-6:]], 
+                messages=[{"role": "user", "content": prompt}], 
                 stream=True
             )
-            for chunk in stream:
-                if chunk.choices[0].delta.content:
-                    full_reply += chunk.choices[0].delta.content
-                    resp_placeholder.markdown(full_reply)
-            if full_reply:
-                st.session_state.messages.append({"role": "assistant", "content": full_reply})
-                speak_response(full_reply)
+            full_reply = "".join([c.choices[0].delta.content for c in stream if c.choices[0].delta.content])
+            st.markdown(full_reply)
+            st.session_state.messages.append({"role": "assistant", "content": full_reply})
+            speak_response(full_reply)
