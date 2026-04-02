@@ -2,17 +2,18 @@ import streamlit as st
 from openai import OpenAI
 import io, base64, requests
 
-# --- [TACTICAL IMPORT CATCH] ---
-try:
-    import replicate
-except Exception:
-    st.info("⚡ SYSTEM: ARMING GENERATION MODULES... REFRESH IN 30 SECONDS.")
-    st.stop()
-
 # --- [SECTION 1: SYSTEM CONFIG] ---
 st.set_page_config(page_title="OBITWICEX | ELITE_OS", layout="wide", initial_sidebar_state="collapsed")
 
-# --- [SECTION 2: CSS - THE TACTICAL SLIM UI] ---
+# --- [TACTICAL IMPORT & ERROR BYPASS] ---
+# We use a try-except at the top to ensure the app doesn't hang forever
+try:
+    import replicate
+    GEN_READY = True
+except Exception:
+    GEN_READY = False
+
+# --- [SECTION 2: CSS - THE FINAL UI HARDENING] ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&family=Orbitron:wght@400;700&display=swap');
@@ -29,11 +30,10 @@ st.markdown("""
     /* THE DOCK - NO BORDERS */
     [data-testid="stForm"] { border: none !important; padding: 0 !important; background: transparent !important; }
     
-    /* BUTTON & UPLOADER COMPRESSION */
-    .stFileUploader section { padding: 0 !important; min-height: unset !important; border: 1px solid #00E5FF !important; border-radius: 5px; }
+    /* COMPRESSION FOR LAYOUT */
+    .stFileUploader section { padding: 0 !important; min-height: unset !important; border: 1px solid #00E5FF !important; }
     .stFileUploader label { display: none; }
     
-    /* TEXT INPUT STYLING */
     .stTextInput input { 
         background: #000 !important; 
         color: #fff !important; 
@@ -42,21 +42,22 @@ st.markdown("""
     }
     .stTextInput input:focus { border-color: #00FF41 !important; box-shadow: 0 0 10px #00FF41 !important; }
 
-    /* ALIGNMENT FIX */
     [data-testid="column"] { display: flex; align-items: center; justify-content: center; }
     header, footer { visibility: hidden; }
     </style>
     <div class="jarvis-hud"><div class="ring-1"></div></div>
     """, unsafe_allow_html=True)
 
-# --- [SECTION 3: GENERATION ENGINES] ---
+# --- [SECTION 3: ENGINE LOGIC] ---
 def gen_art(prompt):
+    if not GEN_READY: return "SYSTEM_STILL_LOADING"
     try:
         output = replicate.run("black-forest-labs/flux-dev", input={"prompt": prompt, "guidance_scale": 7.5})
         return output[0]
     except: return None
 
 def gen_motion(prompt):
+    if not GEN_READY: return "SYSTEM_STILL_LOADING"
     try:
         output = replicate.run("luma/ray", input={"prompt": prompt})
         return output
@@ -65,7 +66,7 @@ def gen_motion(prompt):
 # --- [SECTION 4: DOCK & HISTORY] ---
 if "messages" not in st.session_state: st.session_state.messages = []
 
-# Message history container
+# Show history
 msg_container = st.container()
 with msg_container:
     for m in st.session_state.messages:
@@ -73,8 +74,12 @@ with msg_container:
             content = m['content'][0]['text'] if isinstance(m['content'], list) else m['content']
             st.markdown(content)
 
+# Status bar if still loading
+if not GEN_READY:
+    st.info("⚠️ GEN-MODULES OFFLINE: Installing dependencies... Please wait.")
+
 st.write("---")
-# THE TACTICAL DOCK FORM
+# THE TACTICAL DOCK
 with st.form("uplink_dock", clear_on_submit=True):
     c1, c2, c3, c4, c5 = st.columns([0.05, 0.1, 0.1, 0.65, 0.1])
     with c1: loc = st.checkbox("📍", label_visibility="collapsed")
@@ -95,16 +100,19 @@ if push:
     if final_prompt:
         st.session_state.messages.append({"role": "user", "content": final_prompt})
         with st.chat_message("assistant"):
-            if any(x in final_prompt.lower() for x in ["draw", "image", "generate", "picture", "art"]):
-                st.info("📡 UPLINK: GENERATING UNFILTERED ART...")
+            low_p = final_prompt.lower()
+            if any(x in low_p for x in ["draw", "image", "generate", "picture", "art"]):
+                st.write("🎨 Uplink to Flux-Dev...")
                 res = gen_art(final_prompt)
-                if res:
+                if res == "SYSTEM_STILL_LOADING": st.warning("Gen-modules still arming. Wait 30s.")
+                elif res:
                     st.image(res)
                     st.session_state.messages.append({"role": "assistant", "content": f"Image: {res}"})
-            elif any(x in final_prompt.lower() for x in ["video", "motion", "render", "clip"]):
-                st.info("📡 UPLINK: RENDERING CINEMATIC VIDEO...")
+            elif any(x in low_p for x in ["video", "motion", "render", "clip"]):
+                st.write("🎬 Uplink to Luma-Ray...")
                 res = gen_motion(final_prompt)
-                if res:
+                if res == "SYSTEM_STILL_LOADING": st.warning("Gen-modules still arming. Wait 30s.")
+                elif res:
                     st.video(res)
                     st.session_state.messages.append({"role": "assistant", "content": f"Video: {res}"})
             else:
