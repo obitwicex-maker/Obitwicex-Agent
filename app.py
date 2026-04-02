@@ -33,10 +33,10 @@ st.markdown("""
     header, footer {visibility: hidden;}
     </style>
     <div class="jarvis-hud-container"><div class="ring ring-1"></div><div class="ring ring-2"></div><div class="ring ring-3"></div></div>
-    <div class="telemetry-bar">SYSTEM ENCRYPTION: DONE | STATUS CHECK: LIVE | UPLINK: OPTIMAL</div>
+    <div class="telemetry-bar">SYSTEM ENCRYPTION: DONE | STATUS CHECK: LIVE | UPLINK: REINFORCED</div>
     """, unsafe_allow_html=True)
 
-# --- [SECTION 3: CORE ENGINE] ---
+# --- [SECTION 3: CORE ENGINES] ---
 def speak(text):
     try:
         url = f"https://api.elevenlabs.io/v1/text-to-speech/pNInz6obpgnuM0s4qhGR"
@@ -52,7 +52,7 @@ def gen_art(prompt):
         res = requests.post(
             url="https://openrouter.ai/api/v1/images/generations",
             headers={"Authorization": f"Bearer {api_key}"},
-            json={"prompt": prompt, "model": "black-forest-labs/flux-1.1-pro"}
+            json={"prompt": prompt, "model": "black-forest-labs/flux-schnell"} # Switched to Schnell for stability
         )
         if res.status_code == 200: return res.json()["data"][0]["url"]
         return f"ERROR_{res.status_code}"
@@ -68,7 +68,8 @@ st.divider()
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
         st.markdown(f"<div class='chat-label'>[{'USER_UPLINK' if m['role']=='user' else 'OBITWICEX_YAAR'}]</div>", unsafe_allow_html=True)
-        st.markdown(m['content'][0]['text'] if isinstance(m['content'], list) else m['content'])
+        content = m['content'][0]['text'] if isinstance(m['content'], list) else m['content']
+        st.markdown(content)
 
 # --- [SECTION 5: EXECUTION] ---
 prompt = st.chat_input("Command, Sir...")
@@ -80,7 +81,7 @@ if prompt:
     with st.chat_message("assistant"):
         low_p = prompt.lower()
         if any(x in low_p for x in ["draw", "image", "art", "photo"]):
-            st.write("🎨 Uplink to Flux-1.1-Pro...")
+            st.write("🎨 Uplink to Neural Canvas...")
             res = gen_art(prompt)
             if "ERROR" in str(res): st.error(res)
             else:
@@ -89,9 +90,10 @@ if prompt:
         else:
             try:
                 client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"].strip())
-                # Clean history for the brain (only text, no raw image objects)
+                # Clean history to prevent bad request errors
                 clean_history = [{"role": m["role"], "content": (m["content"][0]["text"] if isinstance(m["content"], list) else m["content"])} for m in st.session_state.messages[-6:]]
                 
+                # Using the core identifier to bypass Amazon Bedrock routing errors
                 stream = client.chat.completions.create(
                     model="anthropic/claude-3.5-sonnet", 
                     messages=[{"role": "system", "content": "You are OBITWICEX, a witty Lahori Yaar."}] + clean_history, 
@@ -107,4 +109,12 @@ if prompt:
                 st.session_state.messages.append({"role": "assistant", "content": full_reply})
                 speak(full_reply)
             except Exception as e:
-                st.error(f"NEURAL_LINK_FAIL: {str(e)}")
+                # FALLBACK MODEL in case OpenRouter has a stroke
+                st.warning("PRIMARY_LINK_LOST. SWITCHING TO BACKUP...")
+                backup_res = client.chat.completions.create(
+                    model="google/gemini-2.0-flash-001",
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                full_reply = backup_res.choices[0].message.content
+                st.markdown(full_reply)
+                st.session_state.messages.append({"role": "assistant", "content": full_reply})
