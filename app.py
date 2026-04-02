@@ -1,9 +1,7 @@
 import streamlit as st
 from openai import OpenAI
 from duckduckgo_search import DDGS
-import io
-import base64
-import requests
+import io, base64, requests
 from datetime import datetime
 
 # --- [SECTION 1: SYSTEM CONFIGURATION] ---
@@ -54,68 +52,53 @@ st.markdown("""
 def gen_art(prompt):
     try:
         import replicate
-        output = replicate.run("black-forest-labs/flux-dev", input={"prompt": prompt, "guidance_scale": 7.5})
+        # Switched to Flux-Schnell for faster, more stable generation
+        client = replicate.Client(api_token=st.secrets["REPLICATE_API_TOKEN"])
+        output = client.run("black-forest-labs/flux-schnell", input={"prompt": prompt})
         return output[0]
-    except: return None
+    except Exception as e: return f"GEN_FAIL: {str(e)}"
 
 def gen_motion(prompt):
     try:
         import replicate
-        output = replicate.run("luma/ray", input={"prompt": prompt})
+        client = replicate.Client(api_token=st.secrets["REPLICATE_API_TOKEN"])
+        output = client.run("luma/ray", input={"prompt": prompt})
         return output
-    except: return None
+    except Exception as e: return f"GEN_FAIL: {str(e)}"
 
 def speak_response(text):
     try:
         api_key = st.secrets["ELEVENLABS_API_KEY"]
-        voice_id = "pNInz6obpgnuM0s4qhGR" 
-        url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/pNInz6obpgnuM0s4qhGR"
         headers = {"Accept": "audio/mpeg", "xi-api-key": api_key, "Content-Type": "application/json"}
-        data = {"text": text, "model_id": "eleven_multilingual_v2", "voice_settings": {"stability": 0.5, "similarity_boost": 0.8}}
-        response = requests.post(url, json=data, headers=headers)
+        response = requests.post(url, json={"text": text, "model_id": "eleven_multilingual_v2"}, headers=headers)
         if response.status_code == 200:
-            b64 = base64.b64encode(response.content).decode()
-            st.markdown(f'<audio autoplay="true"><source src="data:audio/mp3;base64,{b64}" type="audio/mp3"></audio>', unsafe_allow_html=True)
+            st.markdown(f'<audio autoplay="true"><source src="data:audio/mp3;base64,{base64.b64encode(response.content).decode()}" type="audio/mp3"></audio>', unsafe_allow_html=True)
     except: pass
 
 def encode_image(image_file):
     return base64.b64encode(image_file.read()).decode('utf-8')
 
-def search_web(query):
-    try:
-        with DDGS() as ddgs:
-            return " ".join([r.get('body', '') for r in ddgs.text(query, max_results=3)])
-    except: return "OFFLINE"
-
-def agent_call(messages):
-    models = ["anthropic/claude-3.5-sonnet", "openai/gpt-4o", "meta-llama/llama-3.3-70b-instruct"]
-    client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"].strip())
-    for model_id in models:
-        try: return client.chat.completions.create(model=model_id, messages=messages, stream=True)
-        except: continue 
-    return None
-
 # --- [SECTION 4: UI & STATE MANAGEMENT] ---
 if "messages" not in st.session_state: st.session_state.messages = []
 col1, col2 = st.columns(2)
-with col1: voice_data = st.audio_input("🎙️ VOICE")
-with col2: screenshot = st.file_uploader("📸 SCAN", type=['png', 'jpg', 'jpeg'])
+with col1: voice_data = st.audio_input("🎙️ VOICE INPUT")
+with col2: screenshot = st.file_uploader("📸 SCAN IMAGE", type=['png', 'jpg', 'jpeg'])
 st.divider()
 
 for m in st.session_state.messages:
-    label = "USER_UPLINK" if m["role"] == "user" else "OBITWICEX_YAAR"
     with st.chat_message(m["role"]):
-        st.markdown(f"<div class='chat-label'>[{label}]</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='chat-label'>[{'USER_UPLINK' if m['role']=='user' else 'OBITWICEX_YAAR'}]</div>", unsafe_allow_html=True)
         text = m['content'][0]['text'] if isinstance(m['content'], list) else m['content']
         st.markdown(text)
 
 # --- [SECTION 5: EXECUTION LOGIC] ---
 prompt = st.chat_input("Command, Sir...")
+
 if voice_data:
     try:
         client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"].strip())
-        audio_file = io.BytesIO(voice_data.read()); audio_file.name = "v.wav"
-        prompt = client.audio.transcriptions.create(model="whisper-1", file=audio_file).text
+        prompt = client.audio.transcriptions.create(model="whisper-1", file=io.BytesIO(voice_data.read())).text
     except: st.error("VOICE_FAIL")
 
 if prompt:
@@ -123,41 +106,43 @@ if prompt:
     if screenshot:
         user_payload.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encode_image(screenshot)}"}})
     st.session_state.messages.append({"role": "user", "content": user_payload})
-    with st.chat_message("user"):
-        st.markdown("<div class='chat-label'>[USER_UPLINK]</div>", unsafe_allow_html=True); st.markdown(prompt)
+    with st.chat_message("user"): st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        # INTENT CHECK: IMAGE OR VIDEO
-        img_keywords = ["draw", "image", "generate picture", "photo", "art"]
-        vid_keywords = ["video", "motion", "render clip", "animate"]
+        low_p = prompt.lower()
         
-        if any(x in prompt.lower() for x in img_keywords):
-            st.write("🎨 **Uplink to Flux-Dev... Processing Unfiltered Neural Layer...**")
+        # IMAGE GENERATION DETECTOR
+        if any(x in low_p for x in ["draw", "image", "generate picture", "photo", "art"]):
+            st.write("🎨 **Uplink to Flux-Schnell... Processing Neural Layer...**")
             res = gen_art(prompt)
-            if res:
+            if "GEN_FAIL" in str(res): st.error(res)
+            else:
                 st.image(res)
                 st.session_state.messages.append({"role": "assistant", "content": f"Image generated: {res}"})
-            else: st.error("GEN_FAIL")
-            
-        elif any(x in prompt.lower() for x in vid_keywords):
-            st.write("🎬 **Uplink to Luma-Ray... Bypassing Cinematic Limits...**")
+        
+        # VIDEO GENERATION DETECTOR
+        elif any(x in low_p for x in ["video", "motion", "render clip", "animate"]):
+            st.write("🎬 **Uplink to Luma-Ray... Processing Cinematic Limits...**")
             res = gen_motion(prompt)
-            if res:
+            if "GEN_FAIL" in str(res): st.error(res)
+            else:
                 st.video(res)
                 st.session_state.messages.append({"role": "assistant", "content": f"Video generated: {res}"})
-            else: st.error("GEN_FAIL")
         
+        # STANDARD CHAT
         else:
-            # STANDARD CHAT
             resp_placeholder = st.empty(); full_reply = ""
-            sys_msg = "ROLE: OBITWICEX. Lahori Yaar style. Detect intent to draw or make video naturally."
-            msgs = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-8:]
-            stream = agent_call(msgs)
-            if stream:
-                for chunk in stream:
-                    if chunk.choices[0].delta.content:
-                        full_reply += chunk.choices[0].delta.content
-                        resp_placeholder.markdown(f"<div class='chat-label'>[OBITWICEX_YAAR]</div>\n\n{full_reply} █", unsafe_allow_html=True)
-                
-                if full_reply:
-                    speak_response(full_reply); st.session_state.messages.append({"role": "assistant", "content": full_reply})
+            client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"].strip())
+            stream = client.chat.completions.create(
+                model="anthropic/claude-3.5-sonnet", 
+                messages=[{"role": "system", "content": "You are OBITWICEX, a witty Lahori Yaar."}] + [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-6:]], 
+                stream=True
+            )
+            for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    full_reply += chunk.choices[0].delta.content
+                    resp_placeholder.markdown(full_reply)
+            
+            if full_reply:
+                st.session_state.messages.append({"role": "assistant", "content": full_reply})
+                speak_response(full_reply)
