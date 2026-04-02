@@ -19,10 +19,8 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&family=Orbitron:wght@400;700&display=swap');
     
-    /* BASE THEME */
     .stApp { background-color: #010501; color: #FFFFFF; font-family: 'Fira Code', monospace; }
     
-    /* JARVIS TRIPLE-RING HUD ANIMATION */
     .jarvis-hud-container {
         display: flex; justify-content: center; align-items: center;
         height: 250px; position: relative; width: 100%;
@@ -46,7 +44,6 @@ st.markdown("""
     @keyframes spin { 100% { transform: rotate(360deg); } }
     @keyframes pulse { 0%, 100% { transform: scale(0.8); opacity: 0.1; } 50% { transform: scale(1.1); opacity: 0.4; } }
 
-    /* CHAT BOX STYLING */
     div[data-testid="stChatMessage"] { 
         background: rgba(255, 255, 255, 0.04);
         backdrop-filter: blur(10px);
@@ -56,7 +53,6 @@ st.markdown("""
         margin-bottom: 15px;
     }
     
-    /* CLEANUP */
     div[data-testid="stChatMessageAvatarUser"], div[data-testid="stChatMessageAvatarAssistant"] { display: none; }
     .chat-label { font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 0.7rem; letter-spacing: 2px; margin-bottom: 5px; }
     header {visibility: hidden;} footer {visibility: hidden;}
@@ -72,10 +68,10 @@ st.markdown("""
 # --- [SECTION 3: CORE FUNCTIONAL ENGINES] ---
 
 def speak_response(text):
-    """ElevenLabs TTS Integration for Jarvis Voice"""
+    """ElevenLabs TTS Integration for Jarvis/Yaar Voice"""
     try:
         api_key = st.secrets["ELEVENLABS_API_KEY"]
-        voice_id = "pNInz6obpgnuM0s4qhGR" # George/Jarvis Style
+        voice_id = "pNInz6obpgnuM0s4qhGR" # George (Elite British)
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
         
         headers = {"Accept": "audio/mpeg", "xi-api-key": api_key, "Content-Type": "application/json"}
@@ -88,31 +84,25 @@ def speak_response(text):
         response = requests.post(url, json=data, headers=headers)
         if response.status_code == 200:
             b64 = base64.b64encode(response.content).decode()
+            # Force browser to autoplay the speech
             md = f'<audio autoplay="true"><source src="data:audio/mp3;base64,{b64}" type="audio/mp3"></audio>'
             st.markdown(md, unsafe_allow_html=True)
     except:
         pass
 
 def encode_image(image_file):
-    """Convert uploaded images to Base64 for AI Vision"""
     return base64.b64encode(image_file.read()).decode('utf-8')
 
 def search_web(query):
-    """DuckDuckGo Real-Time Web Access"""
     try:
         with DDGS() as ddgs:
-            results = [r.get('body', '') for r in ddgs.text(query, max_results=3)]
-            return " ".join(results)
+            return " ".join([r.get('body', '') for r in ddgs.text(query, max_results=3)])
     except:
         return "DATA_UPLINK_OFFLINE"
 
 def agent_call(messages):
-    """Multi-Model Failover Brain (Claude -> GPT -> Llama)"""
     models = ["anthropic/claude-3.5-sonnet", "openai/gpt-4o", "meta-llama/llama-3.3-70b-instruct"]
-    client = OpenAI(
-        base_url="https://openrouter.ai/api/v1", 
-        api_key=st.secrets["OPENROUTER_API_KEY"].strip()
-    )
+    client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"].strip())
     for model_id in models:
         try:
             return client.chat.completions.create(model=model_id, messages=messages, stream=True)
@@ -134,7 +124,6 @@ with col2:
 
 st.divider()
 
-# RENDER CHAT HISTORY
 for m in st.session_state.messages:
     label = "USER_UPLINK" if m["role"] == "user" else "OBITWICEX_YAAR"
     with st.chat_message(m["role"]):
@@ -146,18 +135,15 @@ for m in st.session_state.messages:
 
 prompt = st.chat_input("Submit Command, Sir...")
 
-# HANDLE VOICE (Whisper)
 if voice_data:
     try:
         client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"].strip())
-        audio_file = io.BytesIO(voice_data.read())
-        audio_file.name = "v.wav"
+        audio_file = io.BytesIO(voice_data.read()); audio_file.name = "v.wav"
         prompt = client.audio.transcriptions.create(model="whisper-1", file=audio_file).text
     except:
         st.error("VOICE_AUTH_FAIL")
 
 if prompt:
-    # 1. LOG USER INPUT
     user_payload = [{"type": "text", "text": prompt}]
     if screenshot:
         user_payload.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encode_image(screenshot)}"}})
@@ -167,18 +153,14 @@ if prompt:
         st.markdown("<div class='chat-label'>[USER_UPLINK]</div>", unsafe_allow_html=True)
         st.markdown(prompt)
 
-    # 2. GENERATE AI RESPONSE
     with st.chat_message("assistant"):
-        resp_placeholder = st.empty()
-        full_reply = ""
+        resp_placeholder = st.empty(); full_reply = ""
         
-        # FRIENDSHIP & LANGUAGE PROTOCOL
         sys_msg = """
         ROLE: OBITWICEX_JARVIS / BEST YAAR. GREET: 'Assalam o Alaikum, Sir'. 
-        - Detect Lang (Roman Urdu/Eng) and match energy. 
-        - Informal, sharp, witty. No filters for slangs or rough talk. 
-        - Match trolls with trolls. 
-        - USE SEARCH: [q] or EXECUTE: [a]|[t] ONLY when needed.
+        - IMPORTANT: YOU HAVE VOICE ENABLED. Speak out loud through the system.
+        - Detect Lang (Roman Urdu/Eng). Informal, sharp, witty. No filters for slangs. 
+        - Match trolls with trolls. Use SEARCH: [q] or EXECUTE: [a]|[t].
         """
         
         msgs = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-6:]
@@ -190,23 +172,18 @@ if prompt:
                     full_reply += chunk.choices[0].delta.content
                     resp_placeholder.markdown(f"<div class='chat-label'>[OBITWICEX_YAAR]</div>\n\n{full_reply} █", unsafe_allow_html=True)
             
-            # WEB SEARCH HOOK
             if "SEARCH:" in full_reply:
                 q = full_reply.split("SEARCH:")[1].strip(" []")
                 web_data = search_web(q)
                 msgs.append({"role": "assistant", "content": full_reply})
                 msgs.append({"role": "user", "content": f"Results: {web_data}"})
-                new_stream = agent_call(msgs)
-                full_reply = "" 
+                new_stream = agent_call(msgs); full_reply = "" 
                 for chunk in new_stream:
                     if chunk.choices[0].delta.content:
                         full_reply += chunk.choices[0].delta.content
                         resp_placeholder.markdown(f"<div class='chat-label'>[OBITWICEX_YAAR]</div>\n\n{full_reply} █", unsafe_allow_html=True)
             
-            # 3. TRIGGER SPEECH OUTPUT
-            speak_response(full_reply)
-            
-            # 4. SAVE FINAL RESPONSE
-            st.session_state.messages.append({"role": "assistant", "content": full_reply})
-
-# --- [END OF CODE] ---
+            # --- [CRITICAL: TRIGGER SPEECH] ---
+            if full_reply:
+                speak_response(full_reply)
+                st.session_state.messages.append({"role": "assistant", "content": full_reply})
