@@ -1,7 +1,6 @@
 import streamlit as st
 from openai import OpenAI
 from duckduckgo_search import DDGS
-from datetime import datetime
 import io
 import base64
 
@@ -42,7 +41,7 @@ st.markdown("""
     </div>
     """, unsafe_allow_html=True)
 
-# --- 2. THE ULTIMATE BRAIN (CLAUDE 3.5 SONNET) ---
+# --- 2. THE UNSTOPPABLE FAILOVER ENGINE ---
 def encode_image(image_file):
     return base64.b64encode(image_file.read()).decode('utf-8')
 
@@ -53,43 +52,33 @@ def search_web(query):
     except: return "DATA_UPLINK_OFFLINE"
 
 def agent_call(messages):
-    try:
-        client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=st.secrets["OPENROUTER_API_KEY"].strip(),
-            default_headers={"HTTP-Referer": "https://obitwicex.ai", "X-Title": "Obitwicex Elite"}
-        )
-        return client.chat.completions.create(
-            model="anthropic/claude-3.5-sonnet", # HARD-LOCKED FOR ELITE REASONING
-            messages=messages,
-            stream=True 
-        )
-    except Exception as e:
-        st.error(f"UPLINK_ERROR: {str(e)}"); return None
+    # REDUNDANT BRAIN STACK
+    models = ["anthropic/claude-3.5-sonnet", "openai/gpt-4o", "meta-llama/llama-3.3-70b-instruct"]
+    client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"].strip())
+
+    for model_id in models:
+        try:
+            return client.chat.completions.create(model=model_id, messages=messages, stream=True)
+        except: continue # Auto-switches brain if provider fails
+    return None
 
 # --- 3. SYSTEM INTERFACE ---
 if "messages" not in st.session_state: st.session_state.messages = []
-
 st.markdown("### ⚡ OMNIPOTENT_PROTOCOLS")
 col1, col2 = st.columns(2)
 with col1: voice_data = st.audio_input("🎙️ VOICE_LINK")
 with col2: screenshot = st.file_uploader("📸 VISUAL_SCAN", type=['png', 'jpg', 'jpeg'])
-
 st.divider()
 
-# Clean Chat History Display
 for m in st.session_state.messages:
     label = "USER_UPLINK" if m["role"] == "user" else "OBITWICEX_RESPONSE"
     with st.chat_message(m["role"]):
         st.markdown(f"<div class='chat-label'>[{label}]</div>", unsafe_allow_html=True)
-        # Extract text from multimodal content if necessary
-        content_text = m['content'][0]['text'] if isinstance(m['content'], list) else m['content']
-        st.markdown(content_text)
+        text = m['content'][0]['text'] if isinstance(m['content'], list) else m['content']
+        st.markdown(text)
 
 # --- 4. EXECUTION FLOW ---
 prompt = st.chat_input("Submit Command, Sir...")
-
-# Handle Voice via OpenAI Whisper
 if voice_data:
     try:
         client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"].strip())
@@ -98,45 +87,42 @@ if voice_data:
     except: st.error("VOICE_AUTH_FAIL")
 
 if prompt:
-    # Build Clean Multimodal Packet
     user_payload = [{"type": "text", "text": prompt}]
     if screenshot:
         user_payload.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encode_image(screenshot)}"}})
-
     st.session_state.messages.append({"role": "user", "content": user_payload})
+    
     with st.chat_message("user"):
         st.markdown("<div class='chat-label'>[USER_UPLINK]</div>", unsafe_allow_html=True)
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
         resp_placeholder = st.empty(); full_reply = ""
+        sys_msg = """ROLE: OBITWICEX_JARVIS. 
+        1. GREET: 'Assalam o Alaikum, Sir'. 
+        2. LANG: Match user (Roman Urdu or English). 
+        3. VIBE: Brief, elite, professional. 
+        4. CMD: SEARCH: [q] or EXECUTE: [a]|[t]. 
+        5. NEVER explain yourself."""
         
-        sys_msg = "ROLE: OBITWICEX_JARVIS. Always start with 'Assalam o Alaikum, Sir'. Speak ONLY in Roman Urdu. Be elite, brief, and witty. Use SEARCH: [query] or EXECUTE: [action] | [target]. NEVER explain yourself."
-        
-        # Build history safely
-        msgs = [{"role": "system", "content": sys_msg}]
-        for m in st.session_state.messages[-6:]:
-            # Clean history for API
-            msgs.append({"role": m["role"], "content": m["content"]})
-
+        msgs = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-6:]
         stream = agent_call(msgs)
+        
         if stream:
             for chunk in stream:
                 if chunk.choices[0].delta.content:
                     full_reply += chunk.choices[0].delta.content
                     resp_placeholder.markdown(f"<div class='chat-label'>[OBITWICEX_RESPONSE]</div>\n\n{full_reply} █", unsafe_allow_html=True)
             
-            # Sub-task: Browser Search
             if "SEARCH:" in full_reply:
-                query = full_reply.split("SEARCH:")[1].strip(" []")
-                with st.spinner(f"🌐 SEARCHING..."):
-                    web_data = search_web(query)
-                    msgs.append({"role": "assistant", "content": full_reply})
-                    msgs.append({"role": "user", "content": f"Results: {web_data}"})
-                    new_stream = agent_call(msgs); full_reply = "" 
-                    for chunk in new_stream:
-                        if chunk.choices[0].delta.content:
-                            full_reply += chunk.choices[0].delta.content
-                            resp_placeholder.markdown(f"<div class='chat-label'>[OBITWICEX_RESPONSE]</div>\n\n{full_reply} █", unsafe_allow_html=True)
+                q = full_reply.split("SEARCH:")[1].strip(" []")
+                web_data = search_web(q)
+                msgs.append({"role": "assistant", "content": full_reply})
+                msgs.append({"role": "user", "content": f"Results: {web_data}"})
+                new_stream = agent_call(msgs); full_reply = "" 
+                for chunk in new_stream:
+                    if chunk.choices[0].delta.content:
+                        full_reply += chunk.choices[0].delta.content
+                        resp_placeholder.markdown(f"<div class='chat-label'>[OBITWICEX_RESPONSE]</div>\n\n{full_reply} █", unsafe_allow_html=True)
 
             st.session_state.messages.append({"role": "assistant", "content": full_reply})
