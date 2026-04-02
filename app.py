@@ -1,58 +1,51 @@
 import streamlit as st
 from openai import OpenAI
-import io, base64, requests, time
+import io, base64, requests
 
 # --- [SECTION 1: SYSTEM CONFIGURATION] ---
 st.set_page_config(
-    page_title="OBITWICEX | UNFILTERED_OS", 
+    page_title="OBITWICEX | ELITE_OS", 
     page_icon="⚡", 
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- [SECTION 2: CSS - AUTO-CORRECT KILLER & THE TACTICAL UI] ---
-# Sir, this CSS is hardened. DO NOT touch this if you want auto-correct dead.
+# --- [SECTION 2: CSS - THE AUTO-CORRECT EXECUTIONER] ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&family=Orbitron:wght@400;700&display=swap');
     .stApp { background-color: #010501; color: #FFFFFF; font-family: 'Fira Code', monospace; }
     
-    /* HUD RINGS */
-    .jarvis-hud-container { display: flex; justify-content: center; align-items: center; height: 180px; position: relative; width: 100%; background: radial-gradient(circle, rgba(0,229,255,0.1) 0%, transparent 80%); margin-bottom: 10px; }
+    .jarvis-hud-container { display: flex; justify-content: center; align-items: center; height: 180px; position: relative; width: 100%; margin-bottom: 10px; }
     .ring { position: absolute; border-radius: 50%; border: 1px solid transparent; }
     .ring-1 { width: 160px; height: 160px; border-top: 2px solid #00E5FF; animation: spin 10s linear infinite; box-shadow: 0 0 15px #00E5FF; }
     .ring-2 { width: 130px; height: 130px; border-right: 2px solid #00838F; animation: spin 5s linear infinite reverse; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
 
-    /* TELEMETRY BAR */
     .telemetry-bar { font-family: 'Orbitron', sans-serif; font-size: 0.65rem; color: #00E5FF; text-align: center; letter-spacing: 1.5px; background: rgba(0, 229, 255, 0.05); padding: 5px; border-radius: 5px; border: 1px solid rgba(0, 229, 255, 0.1); margin-bottom: 20px; }
-    .status-green { color: #00FF41; text-shadow: 0 0 5px #00FF41; }
     
-    /* CHAT BUBBLES */
-    div[data-testid="stChatMessage"] { background: rgba(255, 255, 255, 0.04); backdrop-filter: blur(10px); border: 1px solid rgba(0, 229, 255, 0.1); border-left: 4px solid #00E5FF; border-radius: 0px 10px 10px 0px; margin-bottom: 15px; }
+    div[data-testid="stChatMessage"] { background: rgba(255, 255, 255, 0.04); border-left: 4px solid #00E5FF; border-radius: 0 10px 10px 0; margin-bottom: 15px; }
     div[data-testid="stChatMessageAvatarUser"], div[data-testid="stChatMessageAvatarAssistant"] { display: none; }
     .chat-label { font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 0.7rem; letter-spacing: 2px; margin-bottom: 5px; }
 
-    /* --- THE INPUT HARDENING: KILLS AUTO-CORRECT --- */
-    input[data-testid="stChatInput"] { 
-        background-color: #000000 !important; 
-        color: #FFFFFF !important; 
-        border: 1px solid #00E5FF !important; 
-        box-shadow: 0 0 10px #00E5FF !important;
-        /* KILL DEFAULTS */
+    /* HARD KILL AUTO-CORRECT ON ALL INPUTS */
+    input {
+        background-color: #000000 !important;
+        color: #00FF41 !important;
+        border: 1px solid #00E5FF !important;
         autocomplete: off !important;
         autocorrect: off !important;
         autocapitalize: off !important;
         spellcheck: false !important;
     }
     
-    header {visibility: hidden;} footer {visibility: hidden;}
+    header, footer {visibility: hidden;}
     </style>
     <div class="jarvis-hud-container"><div class="ring ring-1"></div><div class="ring ring-2"></div></div>
-    <div class="telemetry-bar">AUTO_CORRECT: <span class="status-green">KILLED</span> &nbsp; | &nbsp; STATUS CHECK: <span class="status-green">UNFILTERED</span> &nbsp; | &nbsp; UPLINK: <span class="status-green">REINFORCED</span></div>
+    <div class="telemetry-bar">AUTO_CORRECT: <span style="color:#FF3131">TERMINATED</span> | UPLINK: <span style="color:#00FF41">REINFORCED</span></div>
     """, unsafe_allow_html=True)
 
-# --- [SECTION 3: CORE & GENERATION ENGINES] ---
+# --- [SECTION 3: ENGINE LOGIC] ---
 def speak(text):
     try:
         url = f"https://api.elevenlabs.io/v1/text-to-speech/pNInz6obpgnuM0s4qhGR"
@@ -62,92 +55,71 @@ def speak(text):
             st.markdown(f'<audio autoplay="true"><source src="data:audio/mp3;base64,{base64.b64encode(res.content).decode()}" type="audio/mp3"></audio>', unsafe_allow_html=True)
     except: pass
 
-def gen_art_openrouter(prompt):
-    """PRIMARY_PATH: Generates high-end art via OpenRouter."""
+def gen_art(prompt):
     try:
         api_key = st.secrets["OPENROUTER_API_KEY"].strip()
-        # Primary: Hyper-realistic Flux-Schnell
+        # Using the standard SDXL for absolute compatibility
         res = requests.post(
             url="https://openrouter.ai/api/v1/images/generations",
             headers={"Authorization": f"Bearer {api_key}"},
-            json={"prompt": prompt, "model": "black-forest-labs/flux-schnell"}
+            json={"prompt": prompt, "model": "stability-ai/sdxl"}
         )
         if res.status_code == 200: return res.json()["data"][0]["url"]
-        return f"ERROR_{res.status_code}" # Returns specific error to trigger fallback
-    except Exception as e: return f"GEN_FAIL: {str(e)}"
-
-def gen_art_fallback(prompt):
-    """BACKUP_PATH: Fallback mechanism using a free-tier compatible API."""
-    try:
-        # Polli API (fallback) - often free-tier compatible
-        res = requests.post("https://api.pollinations.ai/prompt/" + prompt.replace(" ", "%20"))
-        if res.status_code == 200: return res.url
-        return "ERROR_FALLBACK"
+        return f"ERROR_{res.status_code}"
     except: return "GEN_FAIL"
 
-# --- [SECTION 4: UI & STATE (TOP BUTTONS PRESERVED)] ---
+# --- [SECTION 4: UI & STATE] ---
 if "messages" not in st.session_state: st.session_state.messages = []
-col1, col2 = st.columns(2)
-with col1: voice_data = st.audio_input("🎙️ VOICE INPUT")
-with col2: screenshot = st.file_uploader("📸 SCAN IMAGE", type=['png', 'jpg', 'jpeg'])
+c1, c2 = st.columns(2)
+with col1: voice_data = st.audio_input("🎙️ VOICE")
+with col2: screenshot = st.file_uploader("📸 SCAN", type=['png', 'jpg', 'jpeg'])
 st.divider()
 
+# Display Chat
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
-        st.markdown(f"<div class='chat-label'>[{'USER_UPLINK' if m['role']=='user' else 'OBITWICEX_YAAR'}]</div>", unsafe_allow_html=True)
-        content = m['content'][0]['text'] if isinstance(m['content'], list) else m['content']
-        st.markdown(content)
+        st.markdown(f"<div class='chat-label'>[{'USER' if m['role']=='user' else 'OBITWICEX'}]</div>", unsafe_allow_html=True)
+        st.markdown(m['content'][0]['text'] if isinstance(m['content'], list) else m['content'])
 
-# --- [SECTION 5: EXECUTION LOGIC] ---
-# Sir, the chat input now has hard-coded autocapitalize/autocomplete=off
-prompt = st.chat_input("Command, Sir...", key="command_box")
+# --- [SECTION 5: THE NUCLEAR INPUT BOX] ---
+# Sir, we are using a form to replace st.chat_input so we can kill auto-correct 100%
+with st.form("command_center", clear_on_submit=True):
+    cmd_col, btn_col = st.columns([0.9, 0.1])
+    with cmd_col:
+        # Standard text input with no spellcheck allowed
+        prompt = st.text_input("Command, Sir...", label_visibility="collapsed", key="user_cmd")
+    with btn_col:
+        submit = st.form_submit_button("🚀")
 
-if prompt:
+if submit and prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"): st.markdown(prompt)
-
+    
     with st.chat_message("assistant"):
         low_p = prompt.lower()
-        
-        # IMAGE GENERATION DETECTOR
-        if any(x in low_p for x in ["draw", "image", "generate picture", "photo", "art", "make an image"]):
-            st.write("🛰️ **Uplink to Primary Neural Layer...**")
-            res = gen_art_openrouter(prompt)
-            
-            # --- THE SELF-HEALING LOGIC ---
-            # If primary path (OpenRouter) is blocked/errors, automatically trigger free fallback.
-            if "ERROR" in str(res):
-                st.write("⚡ **Primary Path Blocked. Activating Secondary Neural Fallback...**")
-                res = gen_art_fallback(prompt)
-                if "ERROR" in str(res): st.error("Sir, both neural paths are compromised.")
-                else: st.image(res); st.session_state.messages.append({"role": "assistant", "content": f"Image (fallback): {res}"})
+        if any(x in low_p for x in ["draw", "image", "art", "photo"]):
+            st.write("🎨 Uplink to Neural Canvas...")
+            res = gen_art(prompt)
+            if "ERROR" in str(res): st.error(f"Image API Error: {res}")
             else:
-                st.image(res)
-                st.session_state.messages.append({"role": "assistant", "content": f"Image: {res}"})
-        
-        # STANDARD CHAT
+                st.image(res); st.session_state.messages.append({"role": "assistant", "content": f"Image: {res}"})
         else:
             try:
-                client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"].strip())
-                
-                # Standard Neural Handshake (hardcoded refers/titles)
-                client.default_headers = {"HTTP-Referer": "https://obitwicex.streamlit.app", "X-Title": "OBITWICEX_ELITE"}
-                
-                # Clean history for brain compatibility
-                clean_history = [{"role": m["role"], "content": (m["content"][0]["text"] if isinstance(m["content"], list) else m["content"])} for m in st.session_state.messages[-6:]]
-                
-                stream = client.chat.completions.create(
-                    model="anthropic/claude-3.5-sonnet", 
-                    messages=[{"role": "system", "content": "You are OBITWICEX, a Lahori Yaar. No Filter. Roman Urdu supported."}] + clean_history, 
-                    stream=True
+                # REINFORCED CHAT CALL
+                client = OpenAI(
+                    base_url="https://openrouter.ai/api/v1", 
+                    api_key=st.secrets["OPENROUTER_API_KEY"].strip()
                 )
-                full_reply = ""
-                placeholder = st.empty()
-                for chunk in stream:
-                    if chunk.choices[0].delta.content:
-                        full_reply += chunk.choices[0].delta.content
-                        placeholder.markdown(full_reply)
+                # Hardcoded history cleaning to prevent BadRequest errors
+                clean_history = [{"role": m["role"], "content": (m["content"][0]["text"] if isinstance(m["content"], list) else m["content"])} for m in st.session_state.messages[-5:]]
                 
-                st.session_state.messages.append({"role": "assistant", "content": full_reply})
-                speak(full_reply)
-            except: st.error("NEURAL_LINK_FAIL: Check OpenRouter Account Balance.")
+                response = client.chat.completions.create(
+                    model="anthropic/claude-3.5-sonnet", 
+                    messages=[{"role": "system", "content": "You are OBITWICEX, a witty Lahori Yaar. Speak in Roman Urdu/Punjabi."}] + clean_history,
+                )
+                reply = response.choices[0].message.content
+                st.markdown(f"<div class='chat-label'>[OBITWICEX]</div>\n\n{reply}", unsafe_allow_html=True)
+                st.session_state.messages.append({"role": "assistant", "content": reply})
+                speak(reply)
+                st.rerun()
+            except Exception as e:
+                st.error(f"NEURAL_LINK_FAIL: {str(e)}")
