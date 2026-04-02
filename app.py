@@ -2,17 +2,17 @@ import streamlit as st
 from openai import OpenAI
 import io, base64, requests
 
-# --- [TACTICAL IMPORT CATCH] ---
+# --- [TACTICAL DEPENDENCY LOAD] ---
 try:
     import replicate
-except ImportError:
-    st.warning("⚡ SYSTEM: INSTALLING GENERATION MODULES... PLEASE WAIT 30 SECONDS AND REFRESH.")
+except Exception as e:
+    st.warning("⚡ SYSTEM: CONFIGUREING NEURAL LAYERS... PLEASE REFRESH IN 30 SECONDS.")
     st.stop()
 
 # --- [SECTION 1: SYSTEM CONFIG] ---
 st.set_page_config(page_title="OBITWICEX | ELITE_OS", layout="wide", initial_sidebar_state="collapsed")
 
-# --- [SECTION 2: CSS - THE TACTICAL UI] ---
+# --- [SECTION 2: CSS - TACTICAL UI] ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&family=Orbitron:wght@400;700&display=swap');
@@ -29,23 +29,23 @@ st.markdown("""
     <div class="jarvis-hud"><div class="ring-1"></div></div>
     """, unsafe_allow_html=True)
 
-# --- [SECTION 3: UNFILTERED GENERATION ENGINES] ---
+# --- [SECTION 3: GENERATION ENGINES] ---
 def gen_art(prompt):
     try:
-        # Flux-Dev: High-end realism, unrestricted
+        # Flux-Dev for hyper-realistic, uncensored generation
         output = replicate.run("black-forest-labs/flux-dev", input={"prompt": prompt, "guidance_scale": 7.5})
         return output[0]
     except Exception as e:
-        st.error(f"GEN_FAIL: {str(e)}")
+        st.error(f"IMAGE_GEN_ERROR: {str(e)}")
         return None
 
 def gen_motion(prompt):
     try:
-        # Luma Ray: Cinematic motion generator
+        # Luma Ray for high-end cinematic video
         output = replicate.run("luma/ray", input={"prompt": prompt})
         return output
     except Exception as e:
-        st.error(f"GEN_FAIL: {str(e)}")
+        st.error(f"VIDEO_GEN_ERROR: {str(e)}")
         return None
 
 # --- [SECTION 4: DOCK & HISTORY] ---
@@ -53,7 +53,9 @@ if "messages" not in st.session_state: st.session_state.messages = []
 
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
-        st.markdown(m['content'][0]['text'] if isinstance(m['content'], list) else m['content'])
+        # Support for both list-style and string-style message content
+        content = m['content'][0]['text'] if isinstance(m['content'], list) else m['content']
+        st.markdown(content)
 
 st.write("---")
 with st.form("dock", clear_on_submit=True):
@@ -64,7 +66,7 @@ with st.form("dock", clear_on_submit=True):
     with c4: cmd = st.text_input("", placeholder="Draw... / Make a video...", label_visibility="collapsed")
     with c5: push = st.form_submit_button("🚀")
 
-# --- [SECTION 5: ROUTING LOGIC] ---
+# --- [SECTION 5: ROUTING & EXECUTION] ---
 if push:
     final_prompt = cmd
     if voice_in:
@@ -74,24 +76,19 @@ if push:
     if final_prompt:
         st.session_state.messages.append({"role": "user", "content": final_prompt})
         with st.chat_message("assistant"):
-            img_triggers = ["draw", "image", "generate", "picture", "photo", "art"]
-            vid_triggers = ["video", "motion", "make a clip", "render", "animation"]
-
-            if any(x in final_prompt.lower() for x in img_triggers):
-                st.write("🎨 **Uplink to Flux-Dev... Processing Unfiltered Neural Layer...**")
+            # Detecting generation keywords automatically
+            if any(x in final_prompt.lower() for x in ["draw", "image", "generate", "picture", "photo", "art"]):
                 res = gen_art(final_prompt)
                 if res:
                     st.image(res)
-                    st.session_state.messages.append({"role": "assistant", "content": f"Image: {res}"})
-            
-            elif any(x in final_prompt.lower() for x in vid_triggers):
-                st.write("🎬 **Uplink to Luma-Ray... Bypassing Cinematic Limits...**")
+                    st.session_state.messages.append({"role": "assistant", "content": f"Image generated: {res}"})
+            elif any(x in final_prompt.lower() for x in ["video", "motion", "render", "clip"]):
                 res = gen_motion(final_prompt)
                 if res:
                     st.video(res)
-                    st.session_state.messages.append({"role": "assistant", "content": f"Video: {res}"})
-            
+                    st.session_state.messages.append({"role": "assistant", "content": f"Video generated: {res}"})
             else:
+                # Standard Neural Chat
                 client_or = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"].strip())
                 stream = client_or.chat.completions.create(
                     model="anthropic/claude-3.5-sonnet", 
