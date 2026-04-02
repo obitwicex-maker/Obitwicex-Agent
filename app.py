@@ -4,55 +4,68 @@ from duckduckgo_search import DDGS
 from datetime import datetime
 import io
 
-# --- 1. JARVIS HUD & TERMINAL STYLING ---
-st.set_page_config(page_title="OBITWICEX | JARVIS_OS", page_icon="⚡", layout="wide")
+# --- 1. PREMIUM GLASS HUD & NEON STYLING ---
+st.set_page_config(page_title="OBITWICEX | ELITE_OS", page_icon="⚡", layout="wide")
 
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap');
-    .stApp { background-color: #050505; color: #00FF41; }
+    .stApp { background-color: #000500; color: #FFFFFF; }
     
-    /* JARVIS TRIPLE-RING HUD */
+    /* GLASS-NEON HUD CONTAINER */
     .jarvis-hud-container {
         display: flex; justify-content: center; align-items: center;
         height: 300px; position: relative; width: 100%;
-        margin-bottom: 20px;
+        margin-bottom: 40px;
+        background: radial-gradient(circle, rgba(0,229,255,0.05) 0%, transparent 70%);
     }
     .ring {
         position: absolute; border-radius: 50%;
-        border: 2px solid transparent;
-        border-top: 2px solid #00FF41;
-        border-bottom: 2px solid #00FF41;
-        animation: spin 3s linear infinite;
+        border: 1px solid transparent;
+        box-shadow: 0 0 20px rgba(0, 229, 255, 0.2);
     }
-    .ring-1 { width: 220px; height: 220px; animation-duration: 5s; opacity: 0.8; }
-    .ring-2 { width: 180px; height: 180px; animation-duration: 3s; animation-direction: reverse; opacity: 0.6; }
+    .ring-1 { 
+        width: 260px; height: 260px; border-top: 2px solid #00E5FF; 
+        animation: spin 8s linear infinite; 
+    }
+    .ring-2 { 
+        width: 220px; height: 220px; border-right: 2px solid #00838F; 
+        animation: spin 4s linear infinite reverse; 
+    }
     .ring-3 { 
-        width: 120px; height: 120px; 
-        background: radial-gradient(circle, rgba(0,255,65,0.4) 0%, transparent 70%);
-        animation: pulse 2s ease-in-out infinite;
-        border: none;
+        width: 140px; height: 140px; 
+        background: radial-gradient(circle, #00E5FF 0%, transparent 75%);
+        animation: breath 3s ease-in-out infinite;
+        filter: blur(2px);
     }
+    
     @keyframes spin { 100% { transform: rotate(360deg); } }
-    @keyframes pulse {
-        0%, 100% { transform: scale(0.9); opacity: 0.5; box-shadow: 0 0 20px #00FF41; }
-        50% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 60px #00FF41; }
+    @keyframes breath {
+        0%, 100% { transform: scale(0.9); opacity: 0.3; }
+        50% { transform: scale(1.1); opacity: 0.8; box-shadow: 0 0 40px #00E5FF; }
     }
 
-    /* CHAT HUD BOXES */
+    /* PREMIUM CHAT INTERFACE */
     div[data-testid="stChatMessage"] { 
-        background: linear-gradient(180deg, rgba(0, 255, 65, 0.08) 0%, rgba(0, 5, 0, 1) 100%);
-        border: 1px solid #00FF41;
-        border-radius: 5px; margin-bottom: 15px;
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 229, 255, 0.1);
+        border-left: 4px solid #00E5FF;
+        border-radius: 0px 10px 10px 0px;
+        margin-bottom: 20px;
     }
+    
     div[data-testid="stChatMessageAvatarUser"],
     div[data-testid="stChatMessageAvatarAssistant"] { display: none; }
     
-    .stMarkdown p { font-family: 'Fira Code', monospace; color: #00FF41 !important; font-size: 1.1rem; line-height: 1.6; }
-    [data-testid="stSidebar"] { background-color: #050a05; border-right: 1px solid #1f3f1f; }
+    .stMarkdown p { font-family: 'Fira Code', monospace; line-height: 1.7; }
     
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
+    /* HUD TEXT COLORS */
+    div[data-testid="stChatMessage"][data-testid="user"] .stMarkdown p { color: #00E5FF !important; }
+    div[data-testid="stChatMessage"][data-testid="assistant"] .stMarkdown p { color: #E0E0E0 !important; }
+
+    [data-testid="stSidebar"] { background-color: #010801; border-right: 1px solid #00E5FF; }
+    header {visibility: hidden;} footer {visibility: hidden;}
     </style>
     
     <div class="jarvis-hud-container">
@@ -62,7 +75,7 @@ st.markdown("""
     </div>
     """, unsafe_allow_html=True)
 
-# --- 2. CORE ENGINES (Voice & Browser) ---
+# --- 2. CORE ENGINES ---
 def search_web(query):
     try:
         with DDGS() as ddgs:
@@ -74,19 +87,19 @@ def transcribe_voice(audio_bytes):
     try:
         audio_file = io.BytesIO(audio_bytes)
         audio_file.name = "input.wav"
-        key = st.secrets["OPENAI_API_KEY"].strip().strip('"').strip("'")
+        key = st.secrets["OPENAI_API_KEY"].strip()
         client = OpenAI(api_key=key)
         transcript = client.audio.transcriptions.create(model="whisper-1", file=audio_file)
         return transcript.text
-    except Exception: return "VOICE_STREAMS_OFFLINE"
+    except: return "VOICE_STREAMS_OFFLINE"
 
 def agent_stream(messages):
     try:
-        or_key = st.secrets["OPENROUTER_API_KEY"].strip().strip('"').strip("'")
+        or_key = st.secrets["OPENROUTER_API_KEY"].strip()
         client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=or_key,
-            default_headers={"HTTP-Referer": "https://obitwicex.ai", "X-Title": "Obitwicex JARVIS"}
+            default_headers={"HTTP-Referer": "https://obitwicex.ai", "X-Title": "Obitwicex Elite"}
         )
         return client.chat.completions.create(
             model="meta-llama/llama-3.3-70b-instruct",
@@ -95,43 +108,33 @@ def agent_stream(messages):
         )
     except: return None
 
-# --- 3. THE SIDEBAR HUD ---
+# --- 3. THE HUD SIDEBAR ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 with st.sidebar:
-    st.title("⚡ OBITWICEX_OS")
-    st.markdown(f"**SYSTEM TIME:** `{datetime.now().strftime('%H:%M:%S')}`")
-    st.success("STATUS: ENCRYPTED LIVE 🟢")
+    st.title("⚡ OBITWICEX_ELITE")
+    st.markdown(f"**UPLINK TIME:** `{datetime.now().strftime('%H:%M:%S')}`")
+    st.markdown("**LINK STATUS:** `ENCRYPTED LIVE` 🟢")
     st.divider()
-    
-    st.subheader("🎙️ Voice Protocol")
-    voice_data = st.audio_input("Command via Voice...")
-    
+    voice_data = st.audio_input("Initiate Command...")
     if voice_data:
         if "last_audio_id" not in st.session_state or st.session_state.last_audio_id != id(voice_data):
-            with st.spinner("🔍 DECODING_AUDIO..."):
-                transcript = transcribe_voice(voice_data.read())
-                if transcript != "VOICE_STREAMS_OFFLINE":
-                    st.session_state.voice_text = transcript
+            with st.spinner("🔍 ANALYZING_FREQ..."):
+                res = transcribe_voice(voice_data.read())
+                if res != "VOICE_STREAMS_OFFLINE":
+                    st.session_state.voice_text = res
                     st.session_state.last_audio_id = id(voice_data)
-                else: 
-                    st.error("Auth Failure. Verify OpenAI Balance.")
 
-    if st.button("TERMINATE_SESSION"):
-        st.session_state.messages = []
-        if "voice_text" in st.session_state: del st.session_state.voice_text
-        st.rerun()
+st.markdown('<div class="jarvis-orb-container"><div class="jarvis-orb"></div></div>', unsafe_allow_html=True)
 
-# --- 4. CHAT DISPLAY ---
 for message in st.session_state.messages:
-    label = "USER" if message["role"] == "user" else "OBITWICEX_AGENT"
+    label = "[USER_UPLINK]" if message["role"] == "user" else "[OBITWICEX_AGENT]"
     with st.chat_message(message["role"]):
-        st.markdown(f"**[{label}]**\n\n{message['content']}")
+        st.markdown(f"**{label}**\n\n{message['content']}")
 
-# --- 5. LOGIC & STREAMING ---
+# --- 4. STREAMING LOGIC ---
 prompt = st.chat_input("Submit Command, Sir...")
-
 if "voice_text" in st.session_state:
     prompt = st.session_state.voice_text
     del st.session_state.voice_text
@@ -139,20 +142,12 @@ if "voice_text" in st.session_state:
 if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
-        st.markdown(f"**[USER]**\n\n{prompt}")
+        st.markdown(f"**[USER_UPLINK]**\n\n{prompt}")
 
     with st.chat_message("assistant"):
         resp_placeholder = st.empty()
         full_reply = ""
-        
-        # SYSTEM PROTOCOL: Salam Greeting & Roman Urdu Logic
-        sys_msg = """
-        You are Obitwicex JARVIS. An elite AI Agent.
-        1. Always greet with 'Assalam o Alaikum, Sir' or 'Salam, Sir'.
-        2. NEVER use Namaste. 
-        3. Respond in Roman Urdu for conversation. Use English for data/technical info.
-        4. To search the web, say 'SEARCH: [query]'.
-        """
+        sys_msg = "You are Obitwicex Elite. Elite OS. Always greet with 'Assalam o Alaikum, Sir'. Respond in Roman Urdu. To search, say 'SEARCH: [query]'."
         msgs = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-10:]
         
         stream = agent_stream(msgs)
@@ -162,13 +157,12 @@ if prompt:
                     full_reply += chunk.choices[0].delta.content
                     resp_placeholder.markdown(f"**[OBITWICEX_AGENT]**\n\n{full_reply} █")
             
-            # Browser task logic
             if "SEARCH:" in full_reply:
                 query = full_reply.split("SEARCH:")[1].strip(" []")
-                with st.spinner(f"🌐 BROWSER_LINK_ACTIVE: Searching {query}..."):
+                with st.spinner(f"🌐 BROWSER_ACTIVE: Tasking {query}..."):
                     web_data = search_web(query)
                     msgs.append({"role": "assistant", "content": full_reply})
-                    msgs.append({"role": "user", "content": f"Results: {web_data}"})
+                    msgs.append({"role": "user", "content": f"Data: {web_data}"})
                     new_stream = agent_stream(msgs)
                     full_reply = "" 
                     for chunk in new_stream:
