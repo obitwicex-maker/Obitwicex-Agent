@@ -23,8 +23,8 @@ st.markdown("""
     .ring-2 { width: 130px; height: 130px; border-right: 2px solid #00838F; animation: spin 5s linear infinite reverse; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
 
-    /* TELEMETRY BAR */
-    .telemetry-bar { font-family: 'Orbitron', sans-serif; font-size: 0.65rem; color: #00E5FF; text-align: center; letter-spacing: 1.5px; background: rgba(0, 229, 255, 0.05); padding: 5px; border-radius: 5px; border: 1px solid rgba(0, 229, 255, 0.1); margin-bottom: 20px; }
+    /* TELEMETRY BAR - HARDCODED FIX */
+    .telemetry-bar { font-family: 'Orbitron', sans-serif; font-size: 0.65rem; color: #00E5FF; text-align: center; letter-spacing: 1.5px; background: rgba(0, 229, 255, 0.05); padding: 10px; border-radius: 5px; border: 1px solid rgba(0, 229, 255, 0.1); margin-bottom: 20px; }
     .status-green { color: #00FF41; text-shadow: 0 0 5px #00FF41; }
     
     /* CHAT BUBBLES */
@@ -32,24 +32,38 @@ st.markdown("""
     div[data-testid="stChatMessageAvatarUser"], div[data-testid="stChatMessageAvatarAssistant"] { display: none; }
     .chat-label { font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 0.7rem; letter-spacing: 2px; margin-bottom: 5px; }
     
-    /* --- KILL DEFAULTS ON ALL INPUTS (AUTOCORRECT/SPELLCHECK) --- */
+    /* KILL AUTOCORRECT AT THE ROOT */
     input[data-testid="stChatInput"] {
-        background-color: #000000 !important;
-        color: #FFFFFF !important;
-        border: 1px solid #00E5FF !important;
         autocomplete: off !important;
         autocorrect: off !important;
-        autocapitalize: off !important;
         spellcheck: false !important;
     }
-    
     header, footer {visibility: hidden;}
     </style>
     <div class="jarvis-hud-container"><div class="ring ring-1"></div><div class="ring ring-2"></div></div>
-    <div class="telemetry-bar">AUTO_CORRECT: <span class="status-green">KILLED</span> &nbsp; | &nbsp; STATUS: <span class="status-green">STABLE</span> &nbsp; | &nbsp; UPLINK: <span class="status-green">OPTIMAL</span></div>
+    <div class="telemetry-bar">SYSTEM ENCRYPTION: <span class="status-green">DONE</span> &nbsp; | &nbsp; STATUS: <span class="status-green">LIVE</span> &nbsp; | &nbsp; UPLINK: <span class="status-green">OPTIMAL</span></div>
     """, unsafe_allow_html=True)
 
 # --- [SECTION 3: CORE & GENERATION ENGINES] ---
+def gen_art(prompt):
+    """THE UNBREAKABLE PATH: Pure Replicate HTTP Request (Uses Flux-Schnell)."""
+    try:
+        api_token = st.secrets["REPLICATE_API_TOKEN"].strip()
+        headers = {"Authorization": f"Token {api_token}", "Content-Type": "application/json"}
+        response = requests.post("https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions", 
+                                 headers=headers, json={"input": {"prompt": prompt}})
+        
+        if response.status_code == 201:
+            poll_url = response.json()["urls"]["get"]
+            for _ in range(20):
+                poll_res = requests.get(poll_url, headers=headers).json()
+                if poll_res["status"] == "succeeded": return poll_res["output"][0]
+                if poll_res["status"] == "failed": return "ERROR: Generation Failed."
+                time.sleep(1)
+            return "ERROR: Timeout."
+        return f"ERROR: Rejected ({response.status_code})"
+    except Exception as e: return f"GEN_FAIL: {str(e)}"
+
 def speak(text):
     try:
         url = f"https://api.elevenlabs.io/v1/text-to-speech/pNInz6obpgnuM0s4qhGR"
@@ -59,70 +73,38 @@ def speak(text):
             st.markdown(f'<audio autoplay="true"><source src="data:audio/mp3;base64,{base64.b64encode(res.content).decode()}" type="audio/mp3"></audio>', unsafe_allow_html=True)
     except: pass
 
-def gen_art(prompt):
-    """THE UNBREAKABLE PATH: Pure Replicate HTTP Request (Uses Flux-Schnell)."""
-    try:
-        api_token = st.secrets["REPLICATE_API_TOKEN"].strip()
-        model_url = "https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions"
-        headers = {"Authorization": f"Token {api_token}", "Content-Type": "application/json"}
-        response = requests.post(model_url, headers=headers, json={"input": {"prompt": prompt}})
-        
-        if response.status_code == 201:
-            prediction = response.json()
-            poll_url = prediction["urls"]["get"]
-            for _ in range(20):
-                poll_res = requests.get(poll_url, headers=headers).json()
-                if poll_res["status"] == "succeeded": return poll_res["output"][0]
-                if poll_res["status"] == "failed": return "ERROR: Generation Failed."
-                time.sleep(1)
-            return "ERROR: Timeout."
-        return f"ERROR: Replicate Rejected ({response.status_code})"
-    except Exception as e:
-        return f"GEN_FAIL: {str(e)}"
-
-# --- [SECTION 4: UI & STATE (TOP BUTTONS PRESERVED)] ---
+# --- [SECTION 4: UI & STATE] ---
 if "messages" not in st.session_state: st.session_state.messages = []
 col1, col2 = st.columns(2)
-with col1: voice_data = st.audio_input("🎙️ VOICE INPUT")
-with col2: screenshot = st.file_uploader("📸 SCAN IMAGE", type=['png', 'jpg', 'jpeg'])
+with col1: voice_data = st.audio_input("🎙️ VOICE")
+with col2: screenshot = st.file_uploader("📸 SCAN", type=['png', 'jpg', 'jpeg'])
 st.divider()
 
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
         st.markdown(f"<div class='chat-label'>[{'USER_UPLINK' if m['role']=='user' else 'OBITWICEX_YAAR'}]</div>", unsafe_allow_html=True)
-        content = m['content'][0]['text'] if isinstance(m['content'], list) else m['content']
-        st.markdown(content)
+        st.markdown(m['content'][0]['text'] if isinstance(m['content'], list) else m['content'])
 
 # --- [SECTION 5: EXECUTION LOGIC] ---
 prompt = st.chat_input("Command, Sir...")
 
-if voice_data:
-    try:
-        client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"].strip())
-        prompt = client.audio.transcriptions.create(model="whisper-1", file=io.BytesIO(voice_data.read())).text
-    except: st.error("VOICE_FAIL")
-
 if prompt:
-    user_payload = [{"type": "text", "text": prompt}]
-    st.session_state.messages.append({"role": "user", "content": user_payload})
+    st.session_state.messages.append({"role": "user", "content": [{"type": "text", "text": prompt}]})
     with st.chat_message("user"): st.markdown(prompt)
 
     with st.chat_message("assistant"):
         low_p = prompt.lower()
-        if any(x in low_p for x in ["draw", "image", "generate picture", "photo", "art"]):
-            st.write("🎨 **Uplink to Neural Canvas (Direct Pipe)...**")
+        if any(x in low_p for x in ["draw", "image", "generate", "art", "picture"]):
+            st.write("🎨 Uplink to Neural Canvas...")
             res = gen_art(prompt)
             if "ERROR" in str(res): st.error(res)
             else:
                 st.image(res)
-                st.session_state.messages.append({"role": "assistant", "content": f"Generated Image: {res}"})
+                st.session_state.messages.append({"role": "assistant", "content": f"Image: {res}"})
         else:
             try:
-                client = OpenAI(
-                    base_url="https://openrouter.ai/api/v1", 
-                    api_key=st.secrets["OPENROUTER_API_KEY"].strip(),
-                    default_headers={"HTTP-Referer": "https://obitwicex.streamlit.app", "X-Title": "OBITWICEX_ELITE"}
-                )
+                client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"].strip())
+                # Clean history for stability
                 clean_history = [{"role": m["role"], "content": (m["content"][0]["text"] if isinstance(m["content"], list) else m["content"])} for m in st.session_state.messages[-6:]]
                 
                 stream = client.chat.completions.create(
@@ -139,4 +121,5 @@ if prompt:
                 
                 st.session_state.messages.append({"role": "assistant", "content": full_reply})
                 speak(full_reply)
-            except: st.error("NEURAL_LINK_FAIL: Connection blocked.")
+            except Exception as e:
+                st.error("NEURAL_LINK_FAIL: Connection reset.")
