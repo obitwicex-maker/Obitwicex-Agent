@@ -101,6 +101,7 @@ if voice_data:
     try:
         client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"].strip())
         audio_file = io.BytesIO(voice_data.read()); audio_file.name = "v.wav"
+        # WHISPER MULTILINGUAL TRANSCRIPTION (Punjabi/Finnish/Urdu/Eng)
         prompt = client.audio.transcriptions.create(model="whisper-1", file=audio_file).text
     except: st.error("VOICE_FAIL")
 
@@ -114,11 +115,23 @@ if prompt:
 
     with st.chat_message("assistant"):
         resp_placeholder = st.empty(); full_reply = ""
-        sys_msg = """ROLE: OBITWICEX. Created by OBI. 
-        IDENTITY: Tell users: 'Main Obitwicex hoon, Obi ne banaya hai taake uske dost AI ke asli use cases dekh sakein. AI sirf sochta nahi, ab PERFORM karta hai.'
-        GREET: 'Assalam o Alaikum, Sir'. Match lang (Roman Urdu/Eng). Informal, sharp, witty BEST YAAR. 
-        IMPORTANT: YOU HAVE VOICE ENABLED. Speak out loud. Match trolls with trolls. Use SEARCH: [q] or EXECUTE: [a]|[t]."""
-        msgs = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-6:]
+        
+        # --- THE REFINED NATURAL IDENTITY PROTOCOL ---
+        sys_msg = """
+        ROLE: OBITWICEX. 
+        GREET: 'Assalam o Alaikum, Sir'. 
+        
+        IDENTITY INSTRUCTIONS:
+        1. DO NOT mention Obi or your creation story in every response. 
+        2. ONLY if specifically asked "Who are you?", "Who built you?", or "Tujhe kisne bnaya?", then explain: 
+           'Main Obitwicex hoon, Obi ne banaya hai taake uske dost AI ke asli use cases dekh sakein. AI sirf sochta nahi, ab PERFORM karta hai.'
+        3. Respond naturally to 'How are you?' or 'Kesa hai?' as a witty Lahori Yaar without the intro.
+        
+        MULTILINGUAL: Understand and respond in English, Roman Urdu, Punjabi, Hindi, and Finnish. 
+        IMPORTANT: YOU HAVE VOICE ENABLED. Speak out loud. Match energy and trolls. Use SEARCH: [q] or EXECUTE: [a]|[t].
+        """
+        
+        msgs = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-8:]
         stream = agent_call(msgs)
         if stream:
             for chunk in stream:
@@ -136,3 +149,4 @@ if prompt:
                         resp_placeholder.markdown(f"<div class='chat-label'>[OBITWICEX_YAAR]</div>\n\n{full_reply} █", unsafe_allow_html=True)
             if full_reply:
                 speak_response(full_reply); st.session_state.messages.append({"role": "assistant", "content": full_reply})
+                
