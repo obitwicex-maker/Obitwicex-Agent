@@ -2,15 +2,10 @@ import streamlit as st
 from openai import OpenAI
 import io, base64, requests, time
 
-# --- [SECTION 1: SYSTEM CONFIGURATION] ---
-st.set_page_config(
-    page_title="OBITWICEX | ELITE_OS", 
-    page_icon="⚡", 
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+# --- [SECTION 1: SYSTEM CONFIG] ---
+st.set_page_config(page_title="OBITWICEX | ELITE_OS", page_icon="⚡", layout="wide", initial_sidebar_state="collapsed")
 
-# --- [SECTION 2: STEALTH HUD & TELEMETRY] ---
+# --- [SECTION 2: STEALTH HUD & CSS] ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&family=Orbitron:wght@400;700&display=swap');
@@ -32,68 +27,50 @@ st.markdown("""
         letter-spacing: 1.5px; background: rgba(0, 229, 255, 0.05); padding: 5px;
         border-radius: 5px; border: 1px solid rgba(0, 229, 255, 0.1); margin-bottom: 20px;
     }
-    .status-green { color: #00FF41; text-shadow: 0 0 5px #00FF41; }
-    div[data-testid="stChatMessage"] { 
-        background: rgba(255, 255, 255, 0.04); backdrop-filter: blur(10px);
-        border: 1px solid rgba(0, 229, 255, 0.1); border-left: 4px solid #00E5FF;
-        border-radius: 0px 10px 10px 0px; margin-bottom: 15px;
-    }
+    div[data-testid="stChatMessage"] { background: rgba(255, 255, 255, 0.04); border-left: 4px solid #00E5FF; border-radius: 0 10px 10px 0; margin-bottom: 15px; }
     div[data-testid="stChatMessageAvatarUser"], div[data-testid="stChatMessageAvatarAssistant"] { display: none; }
-    header {visibility: hidden;} footer {visibility: hidden;}
+    .chat-label { font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 0.7rem; letter-spacing: 2px; margin-bottom: 5px; }
+    header, footer {visibility: hidden;}
     </style>
     <div class="jarvis-hud-container"><div class="ring ring-1"></div><div class="ring ring-2"></div><div class="ring ring-3"></div></div>
-    <div class="telemetry-bar">SYSTEM ENCRYPTION: <span class="status-green">DONE</span> | UPLINK: <span class="status-green">OPENROUTER_PRIMARY</span></div>
+    <div class="telemetry-bar">SYSTEM ENCRYPTION: DONE | STATUS CHECK: LIVE | UPLINK: OPTIMAL</div>
     """, unsafe_allow_html=True)
 
-# --- [SECTION 3: THE CORE ENGINE] ---
-def speak_response(text):
+# --- [SECTION 3: CORE ENGINE] ---
+def speak(text):
     try:
-        api_key = st.secrets["ELEVENLABS_API_KEY"]
         url = f"https://api.elevenlabs.io/v1/text-to-speech/pNInz6obpgnuM0s4qhGR"
-        headers = {"Accept": "audio/mpeg", "xi-api-key": api_key, "Content-Type": "application/json"}
+        headers = {"xi-api-key": st.secrets["ELEVENLABS_API_KEY"], "Content-Type": "application/json"}
         res = requests.post(url, json={"text": text, "model_id": "eleven_multilingual_v2"}, headers=headers)
         if res.status_code == 200:
             st.markdown(f'<audio autoplay="true"><source src="data:audio/mp3;base64,{base64.b64encode(res.content).decode()}" type="audio/mp3"></audio>', unsafe_allow_html=True)
     except: pass
 
-def get_openrouter_client():
-    return OpenAI(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=st.secrets["OPENROUTER_API_KEY"].strip(),
-        default_headers={
-            "HTTP-Referer": "https://obitwicex.streamlit.app", # Required for OpenRouter
-            "X-Title": "OBITWICEX_ELITE",
-        }
-    )
-
 def gen_art(prompt):
     try:
         api_key = st.secrets["OPENROUTER_API_KEY"].strip()
-        # Using a higher-tier Flux model via OpenRouter Image API
         res = requests.post(
             url="https://openrouter.ai/api/v1/images/generations",
             headers={"Authorization": f"Bearer {api_key}"},
-            json={
-                "prompt": prompt,
-                "model": "black-forest-labs/flux-1.1-pro", 
-            }
+            json={"prompt": prompt, "model": "black-forest-labs/flux-1.1-pro"}
         )
         if res.status_code == 200: return res.json()["data"][0]["url"]
-        return f"ERROR_{res.status_code}: {res.text}"
-    except Exception as e: return f"GEN_FAIL: {str(e)}"
+        return f"ERROR_{res.status_code}"
+    except: return "GEN_FAIL"
 
-# --- [SECTION 4: UI & STATE MANAGEMENT] ---
+# --- [SECTION 4: UI & STATE] ---
 if "messages" not in st.session_state: st.session_state.messages = []
-col1, col2 = st.columns(2)
-with col1: voice_data = st.audio_input("🎙️ VOICE INPUT")
-with col2: screenshot = st.file_uploader("📸 SCAN IMAGE", type=['png', 'jpg', 'jpeg'])
+c1, c2 = st.columns(2)
+with c1: voice_data = st.audio_input("🎙️ VOICE INPUT")
+with c2: screenshot = st.file_uploader("📸 SCAN IMAGE", type=['png', 'jpg', 'jpeg'])
 st.divider()
 
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
+        st.markdown(f"<div class='chat-label'>[{'USER_UPLINK' if m['role']=='user' else 'OBITWICEX_YAAR'}]</div>", unsafe_allow_html=True)
         st.markdown(m['content'][0]['text'] if isinstance(m['content'], list) else m['content'])
 
-# --- [SECTION 5: EXECUTION LOGIC] ---
+# --- [SECTION 5: EXECUTION] ---
 prompt = st.chat_input("Command, Sir...")
 
 if prompt:
@@ -102,26 +79,32 @@ if prompt:
 
     with st.chat_message("assistant"):
         low_p = prompt.lower()
-        if any(x in low_p for x in ["draw", "image", "art", "photo", "picture"]):
-            st.write("🎨 **Uplink to Flux-1.1-Pro via OpenRouter...**")
+        if any(x in low_p for x in ["draw", "image", "art", "photo"]):
+            st.write("🎨 Uplink to Flux-1.1-Pro...")
             res = gen_art(prompt)
             if "ERROR" in str(res): st.error(res)
             else:
                 st.image(res)
                 st.session_state.messages.append({"role": "assistant", "content": f"Image: {res}"})
         else:
-            client = get_openrouter_client()
-            stream = client.chat.completions.create(
-                model="anthropic/claude-3.5-sonnet", 
-                messages=[{"role": "user", "content": prompt}], 
-                stream=True
-            )
-            full_reply = ""
-            resp_placeholder = st.empty()
-            for chunk in stream:
-                if chunk.choices[0].delta.content:
-                    full_reply += chunk.choices[0].delta.content
-                    resp_placeholder.markdown(full_reply)
-            
-            st.session_state.messages.append({"role": "assistant", "content": full_reply})
-            speak_response(full_reply)
+            try:
+                client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"].strip())
+                # Clean history for the brain (only text, no raw image objects)
+                clean_history = [{"role": m["role"], "content": (m["content"][0]["text"] if isinstance(m["content"], list) else m["content"])} for m in st.session_state.messages[-6:]]
+                
+                stream = client.chat.completions.create(
+                    model="anthropic/claude-3.5-sonnet", 
+                    messages=[{"role": "system", "content": "You are OBITWICEX, a witty Lahori Yaar."}] + clean_history, 
+                    stream=True
+                )
+                full_reply = ""
+                placeholder = st.empty()
+                for chunk in stream:
+                    if chunk.choices[0].delta.content:
+                        full_reply += chunk.choices[0].delta.content
+                        placeholder.markdown(full_reply)
+                
+                st.session_state.messages.append({"role": "assistant", "content": full_reply})
+                speak(full_reply)
+            except Exception as e:
+                st.error(f"NEURAL_LINK_FAIL: {str(e)}")
