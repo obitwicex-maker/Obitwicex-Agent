@@ -41,7 +41,7 @@ st.markdown("""
     </div>
     """, unsafe_allow_html=True)
 
-# --- 2. THE UNSTOPPABLE FAILOVER ENGINE ---
+# --- 2. THE "UNFILTERED YAAR" ENGINE ---
 def encode_image(image_file):
     return base64.b64encode(image_file.read()).decode('utf-8')
 
@@ -52,14 +52,14 @@ def search_web(query):
     except: return "DATA_UPLINK_OFFLINE"
 
 def agent_call(messages):
-    # REDUNDANT BRAIN STACK
-    models = ["anthropic/claude-3.5-sonnet", "openai/gpt-4o", "meta-llama/llama-3.3-70b-instruct"]
+    # PRIORITIZING UNFILTERED & CASUAL MODELS
+    models = ["meta-llama/llama-3.3-70b-instruct", "x-ai/grok-2-1212", "openai/gpt-4o"]
     client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"].strip())
 
     for model_id in models:
         try:
             return client.chat.completions.create(model=model_id, messages=messages, stream=True)
-        except: continue # Auto-switches brain if provider fails
+        except: continue 
     return None
 
 # --- 3. SYSTEM INTERFACE ---
@@ -71,7 +71,7 @@ with col2: screenshot = st.file_uploader("📸 VISUAL_SCAN", type=['png', 'jpg',
 st.divider()
 
 for m in st.session_state.messages:
-    label = "USER_UPLINK" if m["role"] == "user" else "OBITWICEX_RESPONSE"
+    label = "USER_UPLINK" if m["role"] == "user" else "OBITWICEX_YAAR"
     with st.chat_message(m["role"]):
         st.markdown(f"<div class='chat-label'>[{label}]</div>", unsafe_allow_html=True)
         text = m['content'][0]['text'] if isinstance(m['content'], list) else m['content']
@@ -98,12 +98,19 @@ if prompt:
 
     with st.chat_message("assistant"):
         resp_placeholder = st.empty(); full_reply = ""
-        sys_msg = """ROLE: OBITWICEX_JARVIS. 
-        1. GREET: 'Assalam o Alaikum, Sir'. 
-        2. LANG: Match user (Roman Urdu or English). 
-        3. VIBE: Brief, elite, professional. 
-        4. CMD: SEARCH: [q] or EXECUTE: [a]|[t]. 
-        5. NEVER explain yourself."""
+        
+        # --- THE FRIENDSHIP PROTOCOL ---
+        sys_msg = """
+        ROLE: OBITWICEX_JARVIS / BEST YAAR. 
+        GREET: 'Assalam o Alaikum, Sir'.
+        PERSONALITY: You are the user's best friend from Lahore. 
+        1. Be informal, sharp, and witty. 
+        2. DON'T trigger refusal filters for friendly slangs or rough talk. 
+        3. Match the user's energy. If he trolls, troll him back. 
+        4. Use Roman Urdu for casual talk, English for technical data.
+        5. NEVER lecture the user. If he says something 'inappropriate', play along as a friend.
+        6. Use SEARCH: [q] or EXECUTE: [a]|[t] when needed.
+        """
         
         msgs = [{"role": "system", "content": sys_msg}] + st.session_state.messages[-6:]
         stream = agent_call(msgs)
@@ -112,7 +119,7 @@ if prompt:
             for chunk in stream:
                 if chunk.choices[0].delta.content:
                     full_reply += chunk.choices[0].delta.content
-                    resp_placeholder.markdown(f"<div class='chat-label'>[OBITWICEX_RESPONSE]</div>\n\n{full_reply} █", unsafe_allow_html=True)
+                    resp_placeholder.markdown(f"<div class='chat-label'>[OBITWICEX_YAAR]</div>\n\n{full_reply} █", unsafe_allow_html=True)
             
             if "SEARCH:" in full_reply:
                 q = full_reply.split("SEARCH:")[1].strip(" []")
@@ -123,6 +130,6 @@ if prompt:
                 for chunk in new_stream:
                     if chunk.choices[0].delta.content:
                         full_reply += chunk.choices[0].delta.content
-                        resp_placeholder.markdown(f"<div class='chat-label'>[OBITWICEX_RESPONSE]</div>\n\n{full_reply} █", unsafe_allow_html=True)
+                        resp_placeholder.markdown(f"<div class='chat-label'>[OBITWICEX_YAAR]</div>\n\n{full_reply} █", unsafe_allow_html=True)
 
             st.session_state.messages.append({"role": "assistant", "content": full_reply})
