@@ -45,27 +45,7 @@ st.markdown("""
     <div class="telemetry-bar">SYSTEM ENCRYPTION: <span class="status-green">DONE</span> | UPLINK: <span class="status-green">OPENROUTER_PRIMARY</span></div>
     """, unsafe_allow_html=True)
 
-# --- [SECTION 3: OPENROUTER GENERATION ENGINE] ---
-def gen_art_openrouter(prompt):
-    try:
-        api_key = st.secrets["OPENROUTER_API_KEY"].strip()
-        # Using OpenRouter's Image Generation Endpoint
-        # Model: "stability-ai/stable-diffusion-xl" or "google/imagen-3"
-        response = requests.post(
-            url="https://openrouter.ai/api/v1/images/generations",
-            headers={"Authorization": f"Bearer {api_key}"},
-            json={
-                "prompt": prompt,
-                "model": "stability-ai/sdxl", # High quality, widely available on OpenRouter
-            }
-        )
-        if response.status_code == 200:
-            return response.json()["data"][0]["url"]
-        else:
-            return f"ERROR_{response.status_code}: {response.text}"
-    except Exception as e:
-        return f"GEN_FAIL: {str(e)}"
-
+# --- [SECTION 3: THE CORE ENGINE] ---
 def speak_response(text):
     try:
         api_key = st.secrets["ELEVENLABS_API_KEY"]
@@ -75,6 +55,32 @@ def speak_response(text):
         if res.status_code == 200:
             st.markdown(f'<audio autoplay="true"><source src="data:audio/mp3;base64,{base64.b64encode(res.content).decode()}" type="audio/mp3"></audio>', unsafe_allow_html=True)
     except: pass
+
+def get_openrouter_client():
+    return OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=st.secrets["OPENROUTER_API_KEY"].strip(),
+        default_headers={
+            "HTTP-Referer": "https://obitwicex.streamlit.app", # Required for OpenRouter
+            "X-Title": "OBITWICEX_ELITE",
+        }
+    )
+
+def gen_art(prompt):
+    try:
+        api_key = st.secrets["OPENROUTER_API_KEY"].strip()
+        # Using a higher-tier Flux model via OpenRouter Image API
+        res = requests.post(
+            url="https://openrouter.ai/api/v1/images/generations",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "prompt": prompt,
+                "model": "black-forest-labs/flux-1.1-pro", 
+            }
+        )
+        if res.status_code == 200: return res.json()["data"][0]["url"]
+        return f"ERROR_{res.status_code}: {res.text}"
+    except Exception as e: return f"GEN_FAIL: {str(e)}"
 
 # --- [SECTION 4: UI & STATE MANAGEMENT] ---
 if "messages" not in st.session_state: st.session_state.messages = []
@@ -97,22 +103,25 @@ if prompt:
     with st.chat_message("assistant"):
         low_p = prompt.lower()
         if any(x in low_p for x in ["draw", "image", "art", "photo", "picture"]):
-            st.write("🎨 **Routing through OpenRouter Neural Net...**")
-            res = gen_art_openrouter(prompt)
-            if "ERROR" in str(res):
-                st.error(res)
-                st.info("Sir, ensure your OpenRouter account has a few cents of credit for image generation.")
+            st.write("🎨 **Uplink to Flux-1.1-Pro via OpenRouter...**")
+            res = gen_art(prompt)
+            if "ERROR" in str(res): st.error(res)
             else:
                 st.image(res)
-                st.session_state.messages.append({"role": "assistant", "content": f"Generated Image: {res}"})
+                st.session_state.messages.append({"role": "assistant", "content": f"Image: {res}"})
         else:
-            client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"].strip())
+            client = get_openrouter_client()
             stream = client.chat.completions.create(
                 model="anthropic/claude-3.5-sonnet", 
                 messages=[{"role": "user", "content": prompt}], 
                 stream=True
             )
-            full_reply = "".join([c.choices[0].delta.content for c in stream if c.choices[0].delta.content])
-            st.markdown(full_reply)
+            full_reply = ""
+            resp_placeholder = st.empty()
+            for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    full_reply += chunk.choices[0].delta.content
+                    resp_placeholder.markdown(full_reply)
+            
             st.session_state.messages.append({"role": "assistant", "content": full_reply})
             speak_response(full_reply)
