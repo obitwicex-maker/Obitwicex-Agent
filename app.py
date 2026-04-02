@@ -11,7 +11,6 @@ st.set_page_config(
 )
 
 # --- [SECTION 2: CSS - THE TACTICAL SLIM UI] ---
-# Sir, I have hardened this CSS to force the correct layout.
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&family=Orbitron:wght@400;700&display=swap');
@@ -34,7 +33,7 @@ st.markdown("""
     .chat-label { font-family: 'Orbitron', sans-serif; color: #00E5FF; font-size: 0.7rem; letter-spacing: 2px; margin-bottom: 5px; }
     
     /* --- KILL DEFAULTS ON ALL INPUTS (AUTOCORRECT/SPELLCHECK) --- */
-    input {
+    input[data-testid="stChatInput"] {
         background-color: #000000 !important;
         color: #FFFFFF !important;
         border: 1px solid #00E5FF !important;
@@ -64,7 +63,6 @@ def gen_art(prompt):
     """THE UNBREAKABLE PATH: Pure Replicate HTTP Request (Uses Flux-Schnell)."""
     try:
         api_token = st.secrets["REPLICATE_API_TOKEN"].strip()
-        # Flux-Schnell on Replicate (Direct HTTP call to bypass library errors)
         model_url = "https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions"
         headers = {"Authorization": f"Token {api_token}", "Content-Type": "application/json"}
         response = requests.post(model_url, headers=headers, json={"input": {"prompt": prompt}})
@@ -72,7 +70,6 @@ def gen_art(prompt):
         if response.status_code == 201:
             prediction = response.json()
             poll_url = prediction["urls"]["get"]
-            # Fast-polling logic (max 20 seconds)
             for _ in range(20):
                 poll_res = requests.get(poll_url, headers=headers).json()
                 if poll_res["status"] == "succeeded": return poll_res["output"][0]
@@ -83,13 +80,10 @@ def gen_art(prompt):
     except Exception as e:
         return f"GEN_FAIL: {str(e)}"
 
-def encode_image(image_file):
-    return base64.b64encode(image_file.read()).decode('utf-8')
-
 # --- [SECTION 4: UI & STATE (TOP BUTTONS PRESERVED)] ---
 if "messages" not in st.session_state: st.session_state.messages = []
 col1, col2 = st.columns(2)
-with col1: voice_data = st.audio_input("🎙️ VOICE INPUT") # Layout intact
+with col1: voice_data = st.audio_input("🎙️ VOICE INPUT")
 with col2: screenshot = st.file_uploader("📸 SCAN IMAGE", type=['png', 'jpg', 'jpeg'])
 st.divider()
 
@@ -100,8 +94,6 @@ for m in st.session_state.messages:
         st.markdown(content)
 
 # --- [SECTION 5: EXECUTION LOGIC] ---
-# Sir, I’m using standard chat_input because I hard-coded the auto-correct fix in CSS.
-# If the CSS doesn't kill it, nothing will.
 prompt = st.chat_input("Command, Sir...")
 
 if voice_data:
@@ -117,8 +109,6 @@ if prompt:
 
     with st.chat_message("assistant"):
         low_p = prompt.lower()
-        
-        # IMAGE GENERATION DETECTOR
         if any(x in low_p for x in ["draw", "image", "generate picture", "photo", "art"]):
             st.write("🎨 **Uplink to Neural Canvas (Direct Pipe)...**")
             res = gen_art(prompt)
@@ -126,23 +116,18 @@ if prompt:
             else:
                 st.image(res)
                 st.session_state.messages.append({"role": "assistant", "content": f"Generated Image: {res}"})
-        
-        # STANDARD CHAT
         else:
             try:
-                # OpenRouter CHAT PATH is reinforced with correct referrers
                 client = OpenAI(
                     base_url="https://openrouter.ai/api/v1", 
                     api_key=st.secrets["OPENROUTER_API_KEY"].strip(),
                     default_headers={"HTTP-Referer": "https://obitwicex.streamlit.app", "X-Title": "OBITWICEX_ELITE"}
                 )
-                
-                # Standard Neural Handshake (hardcoded refers/titles)
                 clean_history = [{"role": m["role"], "content": (m["content"][0]["text"] if isinstance(m["content"], list) else m["content"])} for m in st.session_state.messages[-6:]]
                 
                 stream = client.chat.completions.create(
                     model="anthropic/claude-3.5-sonnet", 
-                    messages=[{"role": "system", "content": "You are OBITWICEX, a wits Lahori Yaar."}] + clean_history, 
+                    messages=[{"role": "system", "content": "You are OBITWICEX, a witty Lahori Yaar."}] + clean_history, 
                     stream=True
                 )
                 full_reply = ""
@@ -154,4 +139,4 @@ if prompt:
                 
                 st.session_state.messages.append({"role": "assistant", "content": full_reply})
                 speak(full_reply)
-            except: st.error("NEURAL_LINK_FAIL: Chat blocked by OpenRouter.")
+            except: st.error("NEURAL_LINK_FAIL: Connection blocked.")
