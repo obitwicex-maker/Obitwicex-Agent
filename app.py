@@ -51,19 +51,22 @@ st.markdown("""
 # --- [SECTION 3: CORE & GENERATION ENGINES] ---
 def gen_art(prompt):
     try:
-        import replicate
-        # Switched to Flux-Schnell for faster, more stable generation
-        client = replicate.Client(api_token=st.secrets["REPLICATE_API_TOKEN"])
-        output = client.run("black-forest-labs/flux-schnell", input={"prompt": prompt})
-        return output[0]
-    except Exception as e: return f"GEN_FAIL: {str(e)}"
-
-def gen_motion(prompt):
-    try:
-        import replicate
-        client = replicate.Client(api_token=st.secrets["REPLICATE_API_TOKEN"])
-        output = client.run("luma/ray", input={"prompt": prompt})
-        return output
+        # RAW API CALL to bypass library version conflicts
+        api_token = st.secrets["REPLICATE_API_TOKEN"].strip()
+        # Flux-Schnell via Replicate API
+        model_url = "https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions"
+        headers = {"Authorization": f"Token {api_token}", "Content-Type": "application/json"}
+        response = requests.post(model_url, headers=headers, json={"input": {"prompt": prompt}})
+        
+        if response.status_code == 201:
+            prediction = response.json()
+            poll_url = prediction["urls"]["get"]
+            # Polling for result
+            while True:
+                poll_res = requests.get(poll_url, headers=headers).json()
+                if poll_res["status"] == "succeeded": return poll_res["output"][0]
+                if poll_res["status"] == "failed": return "ERROR: Generation Failed."
+        return f"ERROR: API_REJECTED_{response.status_code}"
     except Exception as e: return f"GEN_FAIL: {str(e)}"
 
 def speak_response(text):
@@ -110,26 +113,13 @@ if prompt:
 
     with st.chat_message("assistant"):
         low_p = prompt.lower()
-        
-        # IMAGE GENERATION DETECTOR
         if any(x in low_p for x in ["draw", "image", "generate picture", "photo", "art"]):
             st.write("🎨 **Uplink to Flux-Schnell... Processing Neural Layer...**")
             res = gen_art(prompt)
-            if "GEN_FAIL" in str(res): st.error(res)
+            if "ERROR" in str(res): st.error(res)
             else:
                 st.image(res)
                 st.session_state.messages.append({"role": "assistant", "content": f"Image generated: {res}"})
-        
-        # VIDEO GENERATION DETECTOR
-        elif any(x in low_p for x in ["video", "motion", "render clip", "animate"]):
-            st.write("🎬 **Uplink to Luma-Ray... Processing Cinematic Limits...**")
-            res = gen_motion(prompt)
-            if "GEN_FAIL" in str(res): st.error(res)
-            else:
-                st.video(res)
-                st.session_state.messages.append({"role": "assistant", "content": f"Video generated: {res}"})
-        
-        # STANDARD CHAT
         else:
             resp_placeholder = st.empty(); full_reply = ""
             client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"].strip())
@@ -142,7 +132,6 @@ if prompt:
                 if chunk.choices[0].delta.content:
                     full_reply += chunk.choices[0].delta.content
                     resp_placeholder.markdown(full_reply)
-            
             if full_reply:
                 st.session_state.messages.append({"role": "assistant", "content": full_reply})
                 speak_response(full_reply)
